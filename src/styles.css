@@ -13,7 +13,9 @@ button { border: 0; cursor: pointer; color: inherit; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .icon-button, .mini-button, .tool-button { display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--muted-2); transition: color .18s ease, background .18s ease; }
 .icon-button { width: 31px; height: 31px; border-radius: 6px; }
+.icon-button:disabled { cursor: default; color: #435169; opacity: .55; }
 .icon-button:hover, .mini-button:hover, .tool-button:hover { color: #fff; background: rgba(255,255,255,.06); }
+.icon-button:disabled:hover { color: #435169; background: transparent; }
 .icon-button.muted { color: #45536b; }
 .divider { height: 20px; width: 1px; background: var(--border-strong); margin: 0 8px; }
 .save-state { display: flex; align-items: center; gap: 7px; color: var(--muted); font: 11px 'DM Mono', monospace; margin-right: 14px; }
@@ -46,6 +48,7 @@ h1 { margin: 0; font-size: clamp(25px, 3vw, 37px); line-height: 1.1; letter-spac
 .layer-row.selected { background: rgba(200,255,79,.10); color: var(--lime); }
 .layer-row.hidden { color: #61718a; }.layer-row.hidden .layer-name { opacity: .58; text-decoration: line-through; text-decoration-color: rgba(129,144,168,.5); }.layer-row.hidden .layer-shape { opacity: .42; }
 .layer-chevron { width: 13px; display: flex; align-items: center; color: #66748b; }
+.layer-collapse-toggle { width: 18px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 4px; color: inherit; background: transparent; }.layer-collapse-toggle:hover { color: #f2f6f9; background: rgba(255,255,255,.08); }.layer-collapse-toggle .icon { transition: transform .18s ease; }.layer-collapse-toggle.collapsed .icon { transform: rotate(-90deg); }
 .layer-shape { flex: none; width: 12px; height: 12px; border: 1.5px solid currentColor; border-radius: 3px; opacity: .85; }
 .shape-circle { border-radius: 50%; }.shape-path { border-radius: 50% 3px; transform: skew(-17deg); }.shape-text { border-radius: 1px; border-width: 2px 0; }.shape-g { background: currentColor; border: 0; opacity: .5; }
 .layer-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

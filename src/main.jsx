@@ -129,10 +129,23 @@ function pointerDistance(first, second) {
   return Math.hypot(second.x - first.x, second.y - first.y)
 }
 
+function getVisibleLayerItems(elements, expandedGroups) {
+  const visible = []
+  const ancestors = []
+  elements.forEach((item, index) => {
+    while (ancestors.length && ancestors[ancestors.length - 1].depth >= item.depth) ancestors.pop()
+    const hiddenByCollapsedGroup = ancestors.some((ancestor) => ancestor.tag === 'g' && expandedGroups[ancestor.id] === false)
+    if (!hiddenByCollapsedGroup) visible.push({ item, index })
+    ancestors.push(item)
+  })
+  return visible
+}
+
 function App() {
   const initial = useMemo(() => parseSvg(SAMPLE_SVG), [])
   const [language, setLanguage] = useState('en')
   const [svgMarkup, setSvgMarkup] = useState(initial.markup)
+  const [sourceDraft, setSourceDraft] = useState(initial.markup)
   const [elements, setElements] = useState(initial.elements)
   const [selectedId, setSelectedId] = useState('node-1')
   const [activeTab, setActiveTab] = useState('preview')
@@ -143,6 +156,8 @@ function App() {
   const [svgScale, setSvgScale] = useState(1)
   const [isDraggingSvg, setIsDraggingSvg] = useState(false)
   const [isPinchingSvg, setIsPinchingSvg] = useState(false)
+  const [history, setHistory] = useState({ past: [], future: [] })
+  const [expandedGroups, setExpandedGroups] = useState({})
   const fileInput = useRef(null)
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
@@ -154,6 +169,7 @@ function App() {
   const selected = elements.find((item) => item.id === selectedId) || elements[0]
   const selectedAttrs = selected ? selected.node : null
   const selectedDisplayName = selected ? getLayerDisplayName(selected, language) : ''
+  const visibleLayerItems = getVisibleLayerItems(elements, expandedGroups)
 
   useEffect(() => {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
@@ -164,6 +180,7 @@ function App() {
     try {
       const parsed = parseSvg(raw)
       setSvgMarkup(parsed.markup)
+      setSourceDraft(parsed.markup)
       setElements(parsed.elements)
       setSelectedId(parsed.elements[0]?.id || '')
       setFileName(name)
@@ -171,10 +188,55 @@ function App() {
       setDirty(false)
       setSvgPosition({ x: 0, y: 0 })
       setSvgScale(1)
+      setHistory({ past: [], future: [] })
+      setExpandedGroups({})
       setActiveTab('preview')
     } catch (err) {
       setError(language === 'zh' ? copy.invalidSvg : err.message)
     }
+  }
+
+  const currentSnapshot = () => ({ svgMarkup, fileName, selectedId, dirty })
+
+  const commitDocument = (rawMarkup, { nextSelectedId = selectedId, nextFileName = fileName, nextDirty = true } = {}) => {
+    const parsed = parseSvg(rawMarkup)
+    if (parsed.markup === svgMarkup && nextFileName === fileName && nextDirty === dirty) {
+      setSourceDraft(parsed.markup)
+      return
+    }
+    const validSelectedId = parsed.elements.some((item) => item.id === nextSelectedId) ? nextSelectedId : parsed.elements[0]?.id || ''
+    setHistory((current) => ({ past: [...current.past, currentSnapshot()], future: [] }))
+    setSvgMarkup(parsed.markup)
+    setSourceDraft(parsed.markup)
+    setElements(parsed.elements)
+    setSelectedId(validSelectedId)
+    setFileName(nextFileName)
+    setDirty(nextDirty)
+  }
+
+  const restoreSnapshot = (snapshot) => {
+    const parsed = parseSvg(snapshot.svgMarkup)
+    const validSelectedId = parsed.elements.some((item) => item.id === snapshot.selectedId) ? snapshot.selectedId : parsed.elements[0]?.id || ''
+    setSvgMarkup(parsed.markup)
+    setSourceDraft(parsed.markup)
+    setElements(parsed.elements)
+    setSelectedId(validSelectedId)
+    setFileName(snapshot.fileName)
+    setDirty(snapshot.dirty)
+  }
+
+  const undo = () => {
+    if (!history.past.length) return
+    const previous = history.past[history.past.length - 1]
+    setHistory({ past: history.past.slice(0, -1), future: [currentSnapshot(), ...history.future] })
+    restoreSnapshot(previous)
+  }
+
+  const redo = () => {
+    if (!history.future.length) return
+    const next = history.future[0]
+    setHistory({ past: [...history.past, currentSnapshot()], future: history.future.slice(1) })
+    restoreSnapshot(next)
   }
 
   const updateAttribute = (attribute, value) => {
@@ -185,11 +247,7 @@ function App() {
     if (value === '' || value == null) node.removeAttribute(attribute)
     else node.setAttribute(attribute, value)
     const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
-    const next = parseSvg(nextMarkup)
-    setSvgMarkup(next.markup)
-    setElements(next.elements)
-    setSelectedId(selected.id)
-    setDirty(true)
+    commitDocument(nextMarkup, { nextSelectedId: selected.id })
   }
 
   const toggleVisibility = (item, event) => {
@@ -199,11 +257,12 @@ function App() {
     if (!node) return
     setElementVisibility(node, !isElementHidden(node))
     const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
-    const next = parseSvg(nextMarkup)
-    setSvgMarkup(next.markup)
-    setElements(next.elements)
-    setSelectedId(item.id)
-    setDirty(true)
+    commitDocument(nextMarkup, { nextSelectedId: item.id })
+  }
+
+  const toggleGroup = (item, event) => {
+    event.stopPropagation()
+    setExpandedGroups((current) => ({ ...current, [item.id]: current[item.id] === false }))
   }
 
   const handleFile = (file) => {
@@ -324,8 +383,8 @@ function App() {
       <header className="topbar">
         <div className="brand"><span className="brand-mark"><span /></span><span>VECTOR FORGE</span></div>
         <div className="topbar-actions">
-          <button className="icon-button" title="Undo"><Icon name="undo" /></button>
-          <button className="icon-button muted" title="Redo"><Icon name="redo" /></button>
+          <button className="icon-button" title={language === 'zh' ? '撤销' : 'Undo'} onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
+          <button className="icon-button" title={language === 'zh' ? '前进' : 'Redo'} onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
           <span className="divider" />
           <span className="save-state"><span className={`status-dot ${dirty ? 'dirty' : ''}`} />{dirty ? copy.unsaved : copy.saved}</span>
           <button className="language-toggle" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'zh' : 'en')} aria-label={copy.languageSwitch}>{copy.languageSwitch}</button>
@@ -344,11 +403,13 @@ function App() {
         <aside className="layers-panel panel">
           <div className="panel-header"><div className="panel-title"><Icon name="layers" /><span>{copy.layers}</span></div><button className="mini-button" title={copy.addLayer}><Icon name="plus" size={14} /></button></div>
           <div className="layer-list">
-            {elements.map((item, index) => {
+            {visibleLayerItems.map(({ item, index }) => {
               const hidden = isElementHidden(item.node)
               const displayName = getLayerDisplayName(item, language)
+              const isGroup = item.tag === 'g'
+              const isExpanded = expandedGroups[item.id] !== false
               return <div key={item.id} className={`layer-row ${item.id === selectedId ? 'selected' : ''} ${hidden ? 'hidden' : ''}`} style={{ paddingLeft: `${14 + item.depth * 15}px` }} role="button" tabIndex="0" onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(item.id) }}>
-                <span className="layer-chevron">{item.depth === 0 && elements.some((child) => child.depth > item.depth) ? <Icon name="chevron" size={13} /> : ''}</span>
+                <span className="layer-chevron">{isGroup ? <button className={`layer-collapse-toggle ${isExpanded ? 'expanded' : 'collapsed'}`} type="button" title={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-label={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-expanded={isExpanded} onClick={(event) => toggleGroup(item, event)}><Icon name="chevron" size={13} /></button> : ''}</span>
                 <span className={`layer-shape shape-${item.tag}`} />
                 <span className="layer-name">{displayName}</span>
                 <span className="layer-index">{String(index + 1).padStart(2, '0')}</span>
@@ -379,7 +440,7 @@ function App() {
               />
             </div>
           ) : (
-            <textarea className="source-editor" value={svgMarkup} onChange={(event) => { setSvgMarkup(event.target.value); setDirty(true) }} onBlur={() => loadSvg(svgMarkup, fileName)} spellCheck="false" />
+            <textarea className="source-editor" value={sourceDraft} onChange={(event) => setSourceDraft(event.target.value)} onBlur={() => { try { commitDocument(sourceDraft, { nextSelectedId: selectedId }) } catch (err) { setError(language === 'zh' ? copy.invalidSvg : err.message) } }} spellCheck="false" />
           )}
           {error && <div className="error-toast"><Icon name="x" size={15} />{error}</div>}
           <div className="canvas-status"><span><span className="live-dot" /> {copy.livePreview}</span><span>{elements.length} {copy.statusReady}</span><span className="status-path">{selected ? `${copy.selected}: ${selectedDisplayName}` : copy.noSelection}</span></div>
