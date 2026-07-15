@@ -19,7 +19,7 @@ const COPY = {
   en: {
     languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Open SVG', export: 'Export SVG',
     title: 'Edit the details', subtitle: 'Fine-tune every layer without leaving the canvas.', layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element',
-    preview: 'Preview', source: 'Source', grid: 'Grid', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
+    preview: 'Preview', source: 'Source', format: 'Format', grid: 'Grid', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
     fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
     visible: 'Visible', livePreview: 'Live preview', statusReady: 'elements • SVG ready', changesInstant: 'Changes apply instantly', exportShort: 'Export', selected: 'Selected',
     layersCount: 'layers', elementSuffix: 'element', show: 'Show', hide: 'Hide', noSelection: 'Select a layer to edit its properties.', invalidSvg: 'This file does not contain a valid SVG.',
@@ -27,7 +27,7 @@ const COPY = {
   zh: {
     languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '打开 SVG', export: '导出 SVG',
     title: '编辑细节', subtitle: '无需离开画布，微调每一层。', layers: '图层', addLayer: '添加图层', addElement: '添加元素',
-    preview: '预览', source: '源码', grid: '网格', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
+    preview: '预览', source: '源码', format: '格式化', grid: '网格', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
     fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
     visible: '可见', livePreview: '实时预览', statusReady: '个元素 · SVG 就绪', changesInstant: '更改会即时生效', exportShort: '导出', selected: '已选中',
     layersCount: '个图层', elementSuffix: '元素', show: '显示', hide: '隐藏', noSelection: '选择一个图层来编辑它的属性。', invalidSvg: '该文件不包含有效的 SVG。',
@@ -172,6 +172,55 @@ function updateElementTransform(rawMarkup, targetId, transform) {
   return new XMLSerializer().serializeToString(doc.documentElement)
 }
 
+function formatSvgMarkup(rawMarkup) {
+  const doc = new DOMParser().parseFromString(rawMarkup.trim(), 'image/svg+xml')
+  if (doc.querySelector('parsererror') || doc.documentElement?.tagName?.toLowerCase() !== 'svg') throw new Error('Invalid SVG source.')
+  const serialized = new XMLSerializer().serializeToString(doc.documentElement)
+  const tokens = serialized.replace(/>\s+</g, '><').match(/<!--[\s\S]*?-->|<[^>]+>|[^<]+/g) || []
+  const lines = []
+  let depth = 0
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index].trim()
+    if (!token) continue
+    if (!token.startsWith('<')) {
+      const next = tokens[index + 1]?.trim()
+      if (next?.startsWith('</') && lines.length) {
+        lines[lines.length - 1] += token + next
+        depth = Math.max(0, depth - 1)
+        index += 1
+      }
+      continue
+    }
+    if (token.startsWith('</')) depth = Math.max(0, depth - 1)
+    lines.push(`${'  '.repeat(depth)}${token}`)
+    if (token.startsWith('<') && !token.startsWith('</') && !token.startsWith('<?') && !token.startsWith('<!') && !token.endsWith('/>')) depth += 1
+  }
+  return lines.join('\n')
+}
+
+function highlightSvgSource(source) {
+  const escapeHtml = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const highlightTag = (rawTag) => {
+    const nameMatch = rawTag.match(/^(\s*<\/?)([A-Za-z_][\w:.-]*)/)
+    if (!nameMatch) return escapeHtml(rawTag)
+    const output = [escapeHtml(nameMatch[1]), `<span class="syntax-tag">${escapeHtml(nameMatch[2])}</span>`]
+    const rest = rawTag.slice(nameMatch[0].length)
+    let cursor = 0
+    const attributePattern = /([A-Za-z_:][\w:.-]*)(\s*=\s*)("[^"]*"|'[^']*')/g
+    let match
+    while ((match = attributePattern.exec(rest))) {
+      output.push(escapeHtml(rest.slice(cursor, match.index)))
+      output.push(`<span class="syntax-attribute">${escapeHtml(match[1])}</span>${escapeHtml(match[2])}<span class="syntax-value">${escapeHtml(match[3])}</span>`)
+      cursor = match.index + match[0].length
+    }
+    output.push(escapeHtml(rest.slice(cursor)))
+    return output.join('')
+  }
+
+  const tokens = source.match(/<!--[\s\S]*?-->|<[^>]*>|[^<]+/g) || []
+  return tokens.map((token) => token.startsWith('<!--') ? `<span class="syntax-comment">${escapeHtml(token)}</span>` : token.startsWith('<') ? highlightTag(token) : escapeHtml(token)).join('')
+}
+
 function reorderSiblingElements(rawMarkup, draggedId, targetId) {
   const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
   const dragged = doc.querySelector(`[data-editor-id="${draggedId}"]`)
@@ -224,6 +273,7 @@ function App() {
   const layerRowRefs = useRef(new Map())
   const layerDragRef = useRef(null)
   const suppressLayerClickRef = useRef(false)
+  const sourceHighlightRef = useRef(null)
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
   const copy = COPY[language]
@@ -232,6 +282,7 @@ function App() {
   const selectedAttrs = selected ? selected.node : null
   const selectedDisplayName = selected ? getLayerDisplayName(selected, language) : ''
   const visibleLayerItems = getVisibleLayerItems(elements, expandedGroups)
+  const highlightedSource = useMemo(() => highlightSvgSource(sourceDraft), [sourceDraft])
 
   useEffect(() => {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
@@ -463,6 +514,22 @@ function App() {
     const reader = new FileReader()
     reader.onload = () => loadSvg(String(reader.result), file.name)
     reader.readAsText(file)
+  }
+
+  const syncSourceScroll = (event) => {
+    if (!sourceHighlightRef.current) return
+    sourceHighlightRef.current.scrollTop = event.currentTarget.scrollTop
+    sourceHighlightRef.current.scrollLeft = event.currentTarget.scrollLeft
+  }
+
+  const formatSource = () => {
+    try {
+      const formatted = formatSvgMarkup(sourceDraft)
+      commitDocument(formatted, { nextSelectedId: selectedId })
+      setError('')
+    } catch (err) {
+      setError(language === 'zh' ? copy.invalidSvg : err.message)
+    }
   }
 
   const handleDrop = (event) => {
@@ -739,7 +806,7 @@ function App() {
         <section className="canvas-panel">
           <div className="canvas-toolbar">
             <div className="view-tabs"><button className={activeTab === 'preview' ? 'active' : ''} onClick={() => setActiveTab('preview')}><Icon name="eye" size={14} /> {copy.preview}</button><button className={activeTab === 'source' ? 'active' : ''} onClick={() => setActiveTab('source')}><Icon name="code" size={14} /> {copy.source}</button></div>
-            <div className="canvas-tools"><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button><span className="toolbar-divider" /><button className="tool-button"><Icon name="grid" size={15} /> {copy.grid}</button></div>
+            <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button><span className="toolbar-divider" /><button className="tool-button"><Icon name="grid" size={15} /> {copy.grid}</button></>}</div>
           </div>
           {activeTab === 'preview' ? (
             <div ref={canvasRef} className="canvas-stage" onClick={handleCanvasClick}>
@@ -760,7 +827,10 @@ function App() {
               </div>}
             </div>
           ) : (
-            <textarea className="source-editor" value={sourceDraft} onChange={(event) => setSourceDraft(event.target.value)} onBlur={() => { try { commitDocument(sourceDraft, { nextSelectedId: selectedId }) } catch (err) { setError(language === 'zh' ? copy.invalidSvg : err.message) } }} spellCheck="false" />
+            <div className="source-editor-wrap">
+              <pre ref={sourceHighlightRef} className="source-highlight" aria-hidden="true" dangerouslySetInnerHTML={{ __html: highlightedSource }} />
+              <textarea className="source-editor" value={sourceDraft} onChange={(event) => setSourceDraft(event.target.value)} onScroll={syncSourceScroll} onBlur={() => { try { commitDocument(sourceDraft, { nextSelectedId: selectedId }) } catch (err) { setError(language === 'zh' ? copy.invalidSvg : err.message) } }} spellCheck="false" />
+            </div>
           )}
           {error && <div className="error-toast"><Icon name="x" size={15} />{error}</div>}
           <div className="canvas-status"><span><span className="live-dot" /> {copy.livePreview}</span><span>{elements.length} {copy.statusReady}</span><span className="status-path">{selected ? `${copy.selected}: ${selectedDisplayName}` : copy.noSelection}</span></div>
