@@ -79,9 +79,7 @@ h1 { margin: 0; font-size: clamp(25px, 3vw, 37px); line-height: 1.1; letter-spac
 .svg-wrap [data-editor-id] { cursor: move; transition: filter .15s ease; }
 .svg-wrap.is-dragging-element [data-editor-id] { cursor: grabbing; }
 .svg-wrap [data-editor-id]:hover { filter: brightness(1.04); }
-.svg-wrap [data-editor-id].is-selected { outline: 2px solid var(--lime); outline-offset: 4px; filter: drop-shadow(0 0 6px rgba(200,255,79,.44)); }
-.svg-wrap text[data-editor-id].is-selected { paint-order: stroke fill; stroke: var(--lime); stroke-width: 1.5px; stroke-opacity: .95; filter: drop-shadow(0 0 6px rgba(200,255,79,.7)); }
-.selection-overlay { position: absolute; z-index: 3; pointer-events: none; border: 1px solid rgba(200,255,79,.9); box-shadow: 0 0 0 1px rgba(200,255,79,.18), 0 0 8px rgba(200,255,79,.22); }
+.selection-overlay { position: absolute; z-index: 3; pointer-events: none; border: 1px solid rgba(200,255,79,.9); }
 .selection-overlay.is-resizing { border-color: #fff; }
 .resize-handle { position: absolute; width: 10px; height: 10px; padding: 0; pointer-events: auto; border: 2px solid #17243a; border-radius: 2px; background: var(--lime); box-shadow: 0 0 0 1px rgba(200,255,79,.9); }
 .resize-handle-top-left { top: 0; left: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
