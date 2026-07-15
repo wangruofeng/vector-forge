@@ -62,8 +62,8 @@ function Icon({ name, size = 16 }) {
     plus: <><path d="M8 3v10M3 8h10" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
-    expand: <><path d="M6 3H3v3M10 3h3v3M3 10v3h3M13 10v3h-3" /></>,
-    collapse: <><path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" /></>,
+    expand: <><path d="M7 3H3v4M3 3l4 4M9 3h4v4M13 3 9 7M3 9v4h4M3 13l4-4M13 9v4H9M13 13l-4-4" /></>,
+    collapse: <><path d="M7 7 3 3M7 7V4M7 7H4M9 7l4-4M9 7V4M9 7h3M7 9l-4 4M7 9v3M7 9H4M9 9l4 4M9 9v3M9 9h3" /></>,
     sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
@@ -952,7 +952,7 @@ function App() {
           </div>
           {activeTab === 'preview' ? (
             <div ref={canvasRef} className={`canvas-stage mode-${previewMode}`} onClick={handleCanvasClick}>
-              <div className="drop-hint"><span className="drop-icon"><Icon name="upload" size={15} /></span><span>{copy.dropHint}</span></div>
+              {elements.length === 0 && <div className="drop-hint"><span className="drop-icon"><Icon name="upload" size={15} /></span><span>{copy.dropHint}</span></div>}
               <div
                 className={`svg-wrap ${isDraggingSvg || isDraggingElement ? 'is-dragging' : ''} ${isDraggingElement ? 'is-dragging-element' : ''} ${isPinchingSvg ? 'is-pinching' : ''}`}
                 ref={svgRef}

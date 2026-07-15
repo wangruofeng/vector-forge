@@ -73,6 +73,7 @@ h1 { margin: 0; font-size: clamp(25px, 3vw, 37px); line-height: 1.1; letter-spac
 .view-tabs button.active .icon { color: var(--lime); }
 .canvas-tools { display: flex; gap: 11px; align-items: center; color: var(--muted); font: 10px 'DM Mono', monospace; }
 .mode-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--muted); background: rgba(7,12,24,.22); font: 10px 'DM Mono', monospace; }
+.mode-toggle > .icon { margin-inline: 4px; }
 .mode-toggle span { min-width: 25px; padding: 4px 5px; border-radius: 3px; text-align: center; transition: color .16s, background .16s; }
 .mode-toggle span.active { color: #162116; background: var(--lime); }
 .tool-button { gap: 7px; color: var(--muted-2); font: 11px 'Manrope', sans-serif; }
