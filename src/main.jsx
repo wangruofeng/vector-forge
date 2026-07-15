@@ -77,11 +77,19 @@ function parseSvg(markup) {
     throw new Error('This file does not contain a valid SVG.')
   }
   let id = 0
+  const usedIds = new Set(Array.from(doc.querySelectorAll('[data-editor-id]')).map((node) => node.getAttribute('data-editor-id')).filter(Boolean))
   const elements = []
+  const nextEditorId = () => {
+    while (usedIds.has(`node-${id}`)) id += 1
+    const editorId = `node-${id++}`
+    usedIds.add(editorId)
+    return editorId
+  }
   const walk = (node, depth = 0) => {
     Array.from(node.children).forEach((child, index) => {
       if (!EDITABLE_TAGS.has(child.tagName)) return walk(child, depth)
-      const editorId = `node-${id++}`
+      const existingId = child.getAttribute('data-editor-id')
+      const editorId = existingId || nextEditorId()
       child.setAttribute('data-editor-id', editorId)
       elements.push({ id: editorId, tag: child.tagName, name: friendlyName(child, index), depth, node: child })
       walk(child, depth + 1)
@@ -164,6 +172,15 @@ function updateElementTransform(rawMarkup, targetId, transform) {
   return new XMLSerializer().serializeToString(doc.documentElement)
 }
 
+function reorderSiblingElements(rawMarkup, draggedId, targetId) {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const dragged = doc.querySelector(`[data-editor-id="${draggedId}"]`)
+  const target = doc.querySelector(`[data-editor-id="${targetId}"]`)
+  if (!dragged || !target || dragged === target || dragged.parentElement !== target.parentElement) return rawMarkup
+  target.parentElement.insertBefore(dragged, target)
+  return new XMLSerializer().serializeToString(doc.documentElement)
+}
+
 function getVisibleLayerItems(elements, expandedGroups) {
   const visible = []
   const ancestors = []
@@ -195,6 +212,8 @@ function App() {
   const [isPinchingSvg, setIsPinchingSvg] = useState(false)
   const [history, setHistory] = useState({ past: [], future: [] })
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [draggingLayerId, setDraggingLayerId] = useState('')
+  const [dragOverLayerId, setDragOverLayerId] = useState('')
   const [selectionBox, setSelectionBox] = useState(null)
   const fileInput = useRef(null)
   const canvasRef = useRef(null)
@@ -203,6 +222,8 @@ function App() {
   const elementDragRef = useRef(null)
   const resizeRef = useRef(null)
   const layerRowRefs = useRef(new Map())
+  const layerDragRef = useRef(null)
+  const suppressLayerClickRef = useRef(false)
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
   const copy = COPY[language]
@@ -380,6 +401,62 @@ function App() {
     event.stopPropagation()
     setExpandedGroups((current) => ({ ...current, [item.id]: current[item.id] === false }))
   }
+
+  const handleLayerMouseDown = (event, item) => {
+    if (event.target?.closest?.('button')) {
+      return
+    }
+    layerDragRef.current = { id: item.id, startY: event.clientY, active: false }
+  }
+
+  const clearLayerDrag = () => {
+    setDraggingLayerId('')
+    setDragOverLayerId('')
+  }
+
+  useEffect(() => {
+    const handleLayerMouseMove = (event) => {
+      const drag = layerDragRef.current
+      if (!drag) return
+      if (!drag.active && Math.abs(event.clientY - drag.startY) < 4) return
+      if (!drag.active) {
+        drag.active = true
+        setDraggingLayerId(drag.id)
+      }
+      event.preventDefault()
+      const targetRow = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.layer-row')
+      setDragOverLayerId(targetRow?.getAttribute('data-layer-id') || '')
+    }
+
+    const handleLayerMouseUp = (event) => {
+      const drag = layerDragRef.current
+      if (!drag) return
+      if (drag.active) {
+        event.preventDefault()
+        suppressLayerClickRef.current = true
+        const targetId = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.layer-row')?.getAttribute('data-layer-id') || ''
+        const nextMarkup = targetId && targetId !== drag.id ? reorderSiblingElements(svgMarkup, drag.id, targetId) : svgMarkup
+        clearLayerDrag()
+        if (nextMarkup !== svgMarkup) commitDocument(nextMarkup, { nextSelectedId: drag.id })
+      }
+      layerDragRef.current = null
+    }
+
+    const cancelLayerDrag = () => {
+      if (!layerDragRef.current) return
+      layerDragRef.current = null
+      clearLayerDrag()
+    }
+
+    window.addEventListener('mousemove', handleLayerMouseMove)
+    window.addEventListener('mouseup', handleLayerMouseUp)
+    window.addEventListener('blur', cancelLayerDrag)
+    return () => {
+      window.removeEventListener('mousemove', handleLayerMouseMove)
+      window.removeEventListener('mouseup', handleLayerMouseUp)
+      window.removeEventListener('blur', cancelLayerDrag)
+    }
+  }, [svgMarkup])
 
   const handleFile = (file) => {
     if (!file) return
@@ -647,7 +724,7 @@ function App() {
               const displayName = getLayerDisplayName(item, language)
               const isGroup = item.tag === 'g'
               const isExpanded = expandedGroups[item.id] !== false
-              return <div key={item.id} ref={(node) => { if (node) layerRowRefs.current.set(item.id, node); else layerRowRefs.current.delete(item.id) }} className={`layer-row ${item.id === selectedId ? 'selected' : ''} ${hidden ? 'hidden' : ''}`} style={{ paddingLeft: `${14 + item.depth * 15}px` }} role="button" tabIndex="0" onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(item.id) }}>
+              return <div key={item.id} data-layer-id={item.id} ref={(node) => { if (node) layerRowRefs.current.set(item.id, node); else layerRowRefs.current.delete(item.id) }} className={`layer-row ${item.id === selectedId ? 'selected' : ''} ${hidden ? 'hidden' : ''} ${draggingLayerId === item.id ? 'dragging' : ''} ${dragOverLayerId === item.id ? 'drag-over' : ''}`} style={{ paddingLeft: `${14 + item.depth * 15}px` }} role="button" tabIndex="0" aria-grabbed={draggingLayerId === item.id} onClick={() => { if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return } setSelectedId(item.id) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(item.id) }} onMouseDown={(event) => handleLayerMouseDown(event, item)}>
                 <span className="layer-chevron">{isGroup ? <button className={`layer-collapse-toggle ${isExpanded ? 'expanded' : 'collapsed'}`} type="button" title={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-label={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-expanded={isExpanded} onClick={(event) => toggleGroup(item, event)}><Icon name="chevron" size={13} /></button> : ''}</span>
                 <span className={`layer-shape shape-${item.tag}`} />
                 <span className="layer-name">{displayName}</span>
