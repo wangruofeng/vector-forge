@@ -68,7 +68,8 @@ function Icon({ name, size = 16 }) {
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
   }
-  return <svg className="icon" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
+  const strokeWidth = name === 'expand' || name === 'collapse' ? 2.35 : 1.45
+  return <svg className="icon" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
 function friendlyName(node, index) {
@@ -736,6 +737,9 @@ function App() {
     event.preventDefault()
     event.stopPropagation()
     setSelectedId(item.id)
+    const stageRect = canvasRef.current?.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    if (stageRect && targetRect) setSelectionBox({ left: targetRect.left - stageRect.left, top: targetRect.top - stageRect.top, width: targetRect.width, height: targetRect.height })
     setTextDraft(target.textContent || '')
     setEditingTextId(item.id)
   }
@@ -992,7 +996,7 @@ function App() {
             <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="mode-toggle" type="button" title={previewMode === '2d' ? copy.viewMode2D : copy.viewMode3D} aria-label={previewMode === '2d' ? copy.viewMode3D : copy.viewMode2D} aria-pressed={previewMode === '3d'} onClick={() => setPreviewMode((current) => current === '2d' ? '3d' : '2d')}><Icon name="cube" size={14} /><span className={previewMode === '2d' ? 'active' : ''}>{copy.mode2D}</span><span className={previewMode === '3d' ? 'active' : ''}>{copy.mode3D}</span></button><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button></>}</div>
           </div>
           {activeTab === 'preview' ? (
-            <div ref={canvasRef} className={`canvas-stage mode-${previewMode}`} onClick={handleCanvasClick}>
+            <div ref={canvasRef} className={`canvas-stage mode-${previewMode}`} onClick={handleCanvasClick} onDoubleClick={handleSvgDoubleClick}>
               {elements.length === 0 && <div className="drop-hint"><span className="drop-icon"><Icon name="upload" size={15} /></span><span>{copy.dropHint}</span></div>}
               <div
                 className={`svg-wrap ${isDraggingSvg || isDraggingElement ? 'is-dragging' : ''} ${isDraggingElement ? 'is-dragging-element' : ''} ${isPinchingSvg ? 'is-pinching' : ''}`}
@@ -1002,7 +1006,6 @@ function App() {
                 onPointerMove={handleSvgPointerMove}
                 onPointerUp={handleSvgPointerUp}
                 onPointerCancel={(event) => handleSvgPointerUp(event, true)}
-                onDoubleClick={handleSvgDoubleClick}
                 dangerouslySetInnerHTML={{ __html: svgMarkup.replace(`data-editor-id="${selectedId}"`, `data-editor-id="${selectedId}" class="is-selected"`) }}
               />
               {editingTextId === selectedId && selected?.tag === 'text' && selectionBox && <input
