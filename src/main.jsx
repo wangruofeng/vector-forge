@@ -641,10 +641,15 @@ function App() {
   }
 
   const addLayer = (tag) => {
-    const created = createLayerMarkup(svgMarkup, tag, language === 'zh' ? '新文本' : 'New text')
+    const textContent = language === 'zh' ? '新文本' : 'New text'
+    const created = createLayerMarkup(svgMarkup, tag, textContent)
     commitDocument(created.markup, { nextSelectedId: created.id })
     setAddLayerMenuOpen(false)
     setActiveTab('preview')
+    if (tag === 'text') {
+      setTextDraft(textContent)
+      setEditingTextId(created.id)
+    }
   }
 
   const copySelectedLayer = (event) => {
