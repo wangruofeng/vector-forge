@@ -19,7 +19,7 @@ const COPY = {
   en: {
     languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Open SVG', export: 'Export SVG',
     title: 'Edit the details', subtitle: 'Fine-tune every layer without leaving the canvas.', layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element',
-    preview: 'Preview', source: 'Source', format: 'Format', grid: 'Grid', mode2D: '2D', mode3D: '3D', viewMode2D: '2D view', viewMode3D: '3D view', fullscreen: 'Full-screen edit', exitFullscreen: 'Exit full-screen', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
+    preview: 'Preview', source: 'Source', format: 'Format', mode2D: '2D', mode3D: '3D', viewMode2D: '2D view', viewMode3D: '3D view', fullscreen: 'Full-screen edit', exitFullscreen: 'Exit full-screen', collapseInspector: 'Collapse properties', expandInspector: 'Expand properties', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
     fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
     visible: 'Visible', livePreview: 'Live preview', statusReady: 'elements • SVG ready', changesInstant: 'Changes apply instantly', exportShort: 'Export', selected: 'Selected',
     layersCount: 'layers', elementSuffix: 'element', show: 'Show', hide: 'Hide', noSelection: 'Select a layer to edit its properties.', invalidSvg: 'This file does not contain a valid SVG.',
@@ -27,7 +27,7 @@ const COPY = {
   zh: {
     languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '打开 SVG', export: '导出 SVG',
     title: '编辑细节', subtitle: '无需离开画布，微调每一层。', layers: '图层', addLayer: '添加图层', addElement: '添加元素',
-    preview: '预览', source: '源码', format: '格式化', grid: '网格', mode2D: '2D', mode3D: '3D', viewMode2D: '2D 查看', viewMode3D: '3D 查看', fullscreen: '全屏编辑', exitFullscreen: '退出全屏', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
+    preview: '预览', source: '源码', format: '格式化', mode2D: '2D', mode3D: '3D', viewMode2D: '2D 查看', viewMode3D: '3D 查看', fullscreen: '全屏编辑', exitFullscreen: '退出全屏', collapseInspector: '折叠属性面板', expandInspector: '展开属性面板', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
     fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
     visible: '可见', livePreview: '实时预览', statusReady: '个元素 · SVG 就绪', changesInstant: '更改会即时生效', exportShort: '导出', selected: '已选中',
     layersCount: '个图层', elementSuffix: '元素', show: '显示', hide: '隐藏', noSelection: '选择一个图层来编辑它的属性。', invalidSvg: '该文件不包含有效的 SVG。',
@@ -60,11 +60,11 @@ function Icon({ name, size = 16 }) {
     layers: <><path d="m8 2 6 3-6 3-6-3 6-3Z" /><path d="m2 8 6 3 6-3M2 11l6 3 6-3" /></>,
     chevron: <path d="m5 6 3 3 3-3" />,
     plus: <><path d="M8 3v10M3 8h10" /></>,
-    grid: <><rect x="2.5" y="2.5" width="5" height="5" rx="1" /><rect x="8.5" y="2.5" width="5" height="5" rx="1" /><rect x="2.5" y="8.5" width="5" height="5" rx="1" /><rect x="8.5" y="8.5" width="5" height="5" rx="1" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
     expand: <><path d="M6 3H3v3M10 3h3v3M3 10v3h3M13 10v3h-3" /></>,
     collapse: <><path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" /></>,
+    sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M9.5 3v10M12 6 10 8l2 2" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
   }
@@ -334,6 +334,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('preview')
   const [previewMode, setPreviewMode] = useState('2d')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isInspectorOpen, setIsInspectorOpen] = useState(true)
   const [addLayerMenuOpen, setAddLayerMenuOpen] = useState(false)
   const [fileName, setFileName] = useState('untitled.svg')
   const [error, setError] = useState('')
@@ -922,7 +923,7 @@ function App() {
         <div className="file-chip"><span className="file-icon">SVG</span><span>{fileName}</span><span className="file-size">{elements.length} {copy.layersCount}</span></div>
       </section>
 
-      <section className="workspace">
+      <section className={`workspace ${isInspectorOpen ? '' : 'inspector-collapsed'}`}>
         <aside className="layers-panel panel">
           <div className="panel-header"><div className="panel-title"><Icon name="layers" /><span>{copy.layers}</span></div><button className="mini-button" type="button" title={copy.addLayer} aria-label={copy.addLayer} aria-expanded={addLayerMenuOpen} onClick={() => setAddLayerMenuOpen((current) => !current)}><Icon name="plus" size={14} /></button></div>
           {addLayerMenuOpen && <div className="add-layer-menu" role="menu">{ADD_LAYER_TAGS.map((tag) => <button key={tag} type="button" role="menuitem" onClick={() => addLayer(tag)}><span className={`layer-shape shape-${tag}`} /><span>{getTagDisplayName(tag, language)}</span></button>)}</div>}
@@ -947,7 +948,7 @@ function App() {
         <section className="canvas-panel">
           <div className="canvas-toolbar">
             <div className="view-tabs"><button className={activeTab === 'preview' ? 'active' : ''} onClick={() => setActiveTab('preview')}><Icon name="eye" size={14} /> {copy.preview}</button><button className={activeTab === 'source' ? 'active' : ''} onClick={() => setActiveTab('source')}><Icon name="code" size={14} /> {copy.source}</button></div>
-            <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="mode-toggle" type="button" title={previewMode === '2d' ? copy.viewMode2D : copy.viewMode3D} aria-label={previewMode === '2d' ? copy.viewMode3D : copy.viewMode2D} aria-pressed={previewMode === '3d'} onClick={() => setPreviewMode((current) => current === '2d' ? '3d' : '2d')}><Icon name="cube" size={14} /><span className={previewMode === '2d' ? 'active' : ''}>{copy.mode2D}</span><span className={previewMode === '3d' ? 'active' : ''}>{copy.mode3D}</span></button><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button><span className="toolbar-divider" /><button className="tool-button"><Icon name="grid" size={15} /> {copy.grid}</button></>}</div>
+            <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="mode-toggle" type="button" title={previewMode === '2d' ? copy.viewMode2D : copy.viewMode3D} aria-label={previewMode === '2d' ? copy.viewMode3D : copy.viewMode2D} aria-pressed={previewMode === '3d'} onClick={() => setPreviewMode((current) => current === '2d' ? '3d' : '2d')}><Icon name="cube" size={14} /><span className={previewMode === '2d' ? 'active' : ''}>{copy.mode2D}</span><span className={previewMode === '3d' ? 'active' : ''}>{copy.mode3D}</span></button><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button></>}</div>
           </div>
           {activeTab === 'preview' ? (
             <div ref={canvasRef} className={`canvas-stage mode-${previewMode}`} onClick={handleCanvasClick}>
@@ -977,9 +978,9 @@ function App() {
           <div className="canvas-status"><span><span className="live-dot" /> {copy.livePreview}</span><span>{elements.length} {copy.statusReady}</span><span className="status-path">{selected ? `${copy.selected}: ${selectedDisplayName}` : copy.noSelection}</span></div>
         </section>
 
-        <aside className="inspector-panel panel">
-          <div className="panel-header"><div className="panel-title"><span>{copy.inspector}</span></div><button className="mini-button"><Icon name="x" size={14} /></button></div>
-          {selected ? <>
+        <aside className={`inspector-panel panel ${isInspectorOpen ? '' : 'is-collapsed'}`}>
+          <div className="panel-header inspector-header"><div className="panel-title"><span>{copy.inspector}</span></div><button className="mini-button inspector-toggle" type="button" title={isInspectorOpen ? copy.collapseInspector : copy.expandInspector} aria-label={isInspectorOpen ? copy.collapseInspector : copy.expandInspector} aria-expanded={isInspectorOpen} onClick={() => setIsInspectorOpen((current) => !current)}><Icon name="sidebar" size={14} /></button></div>
+          <div className="inspector-content">{selected ? <>
             <div className="selection-summary"><div className={`selection-icon tag-${selected.tag}`}>{selected.tag.slice(0, 2).toUpperCase()}</div><div className="selection-meta"><strong>{selectedDisplayName}</strong><span>{getTagDisplayName(selected.tag, language)} {copy.elementSuffix}</span></div><span className="selection-check"><Icon name="check" size={13} /></span></div>
             <div className="inspector-section"><div className="section-label">{copy.appearance}</div>
               <ColorField label={copy.fill} value={fill} onChange={(value) => updateAttribute('fill', value)} />
@@ -989,7 +990,7 @@ function App() {
               {selected.tag === 'rect' && <div className="field-row"><label>{copy.cornerRadius}</label><div className="range-wrap"><input type="range" min="0" max={cornerRadiusMax} step="1" value={cornerRadius} onChange={(event) => updateRectRadius(event.target.value)} /><span>{cornerRadius}px</span></div></div>}
             </div>
             <div className="inspector-section"><div className="section-label">{copy.elementDetails}</div><div className="detail-grid"><div><span>{copy.layer}</span><strong>{String(elements.indexOf(selected) + 1).padStart(2, '0')} / {String(elements.length).padStart(2, '0')}</strong></div><div><span>{copy.visibility}</span><strong>{copy.visible}</strong></div></div></div>
-          </> : <div className="empty-inspector">{copy.noSelection}</div>}
+          </> : <div className="empty-inspector">{copy.noSelection}</div>}</div>
           <div className="inspector-footer"><span><span className="kbd">⌘</span><span className="kbd">S</span> {copy.exportShort}</span><span className="footer-hint">{copy.changesInstant}</span></div>
         </aside>
       </section>
