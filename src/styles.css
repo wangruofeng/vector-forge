@@ -121,8 +121,9 @@ h1 { margin: 0; font-size: clamp(25px, 3vw, 37px); line-height: 1.1; letter-spac
 .inspector-panel.is-collapsed .inspector-content, .inspector-panel.is-collapsed .inspector-footer { display: none; }
 .inspector-panel.is-collapsed .panel-header { height: 100%; padding: 0; justify-content: center; border-left: 0; border-bottom: 0; }
 .inspector-panel.is-collapsed .panel-title { display: none; }
-.inspector-toggle { color: var(--muted-2); }
-.inspector-panel.is-collapsed .inspector-toggle .icon { transform: rotate(180deg); }
+.inspector-header { position: relative; }
+.inspector-toggle { position: absolute; top: 15px; right: 14px; color: var(--muted-2); }
+.inspector-panel.is-collapsed .inspector-toggle .icon { transform: scaleX(-1); }
 @media (max-width: 980px) { .app-shell { padding: 0 14px 14px; }.workspace { height: auto; min-height: 650px; grid-template-columns: 185px minmax(300px, 1fr); grid-template-rows: minmax(470px, 1fr) auto; }.inspector-panel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); display: flex; min-height: 260px; }.workspace-heading { padding-inline: 8px; }.file-chip { display: none; } }
 @media (max-width: 980px) { .workspace.inspector-collapsed { grid-template-columns: 185px minmax(300px, 1fr); }.inspector-panel.is-collapsed { min-height: 55px; }.inspector-panel.is-collapsed .panel-header { height: 55px; padding: 0 16px; justify-content: space-between; border-bottom: 0; }.inspector-panel.is-collapsed .panel-title { display: flex; } }
 @media (max-width: 680px) { .topbar { height: 62px; }.brand { font-size: 10px; }.topbar-actions { gap: 5px; }.topbar-actions .icon-button, .divider, .save-state, .button-quiet { display: none; }.button { padding: 9px 10px; font-size: 11px; }.workspace-heading { padding: 26px 4px 20px; }.workspace-heading p { font-size: 11px; }.workspace { min-height: 860px; grid-template-columns: 1fr; grid-template-rows: minmax(460px, 1fr) auto; }.layers-panel { display: none; }.canvas-panel { grid-row: 1; }.inspector-panel { grid-column: 1; min-height: 360px; }.canvas-status { padding-inline: 10px; }.canvas-status .status-path { display: none; }.drop-hint { top: 15px; font-size: 9px; }.svg-wrap { width: 82%; } }

@@ -64,7 +64,7 @@ function Icon({ name, size = 16 }) {
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
     expand: <><path d="M6 3H3v3M10 3h3v3M3 10v3h3M13 10v3h-3" /></>,
     collapse: <><path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" /></>,
-    sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M9.5 3v10M12 6 10 8l2 2" /></>,
+    sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
   }
@@ -419,7 +419,7 @@ function App() {
       })
     })
     return () => cancelAnimationFrame(frame)
-  }, [activeTab, previewMode, selectedId, svgMarkup, svgPosition.x, svgPosition.y, svgScale])
+  }, [activeTab, isInspectorOpen, previewMode, selectedId, svgMarkup, svgPosition.x, svgPosition.y, svgScale])
 
   const loadSvg = (raw, name = 'untitled.svg') => {
     try {
