@@ -62,13 +62,18 @@ function Icon({ name, size = 16 }) {
     plus: <><path d="M8 3v10M3 8h10" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
-    expand: <path d="M7 3H3v4M9 3h4v4M3 9v4h4M13 9v4H9" />,
-    collapse: <path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" />,
+    expand: <path d="M6.4 2.6H3.4V5.6M9.6 2.6h3v3M3.4 10.4v3h3M12.6 10.4v3h-3" />,
+    exitFullscreen: <>
+        <path d="M5 3v3H3" />
+        <path d="M11 3v3h2" />
+        <path d="M3 10h2v3" />
+        <path d="M13 10h-2v3" />
+      </>,
     sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
   }
-  const strokeWidth = name === 'expand' || name === 'collapse' ? 2.35 : 1.45
+  const strokeWidth = name === 'expand' || name === 'exitFullscreen' ? 2.1 : 1.45
   return <svg className="icon" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
@@ -954,7 +959,7 @@ function App() {
         <div className="topbar-actions">
           <button className="icon-button" title={language === 'zh' ? '撤销（⌘ Z）' : 'Undo (⌘ Z)'} aria-keyshortcuts="Meta+Z" onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
           <button className="icon-button" title={language === 'zh' ? '前进（⌘ Shift Z）' : 'Redo (⌘ Shift Z)'} aria-keyshortcuts="Meta+Shift+Z" onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
-          <button className="icon-button" type="button" title={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-label={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-pressed={isFullscreen} onClick={() => setIsFullscreen((current) => !current)}><Icon name={isFullscreen ? 'collapse' : 'expand'} /></button>
+          <button className="icon-button" type="button" title={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-label={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-pressed={isFullscreen} onClick={() => setIsFullscreen((current) => !current)}><Icon name={isFullscreen ? 'exitFullscreen' : 'expand'} /></button>
           <span className="divider" />
           <span className="save-state"><span className={`status-dot ${dirty ? 'dirty' : ''}`} />{dirty ? copy.unsaved : copy.saved}</span>
           <button className="language-toggle" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'zh' : 'en')} aria-label={copy.languageSwitch}>{copy.languageSwitch}</button>
