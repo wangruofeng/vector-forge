@@ -19,7 +19,7 @@ const COPY = {
   en: {
     languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Open SVG', export: 'Export SVG',
     title: 'Edit the details', subtitle: 'Fine-tune every layer without leaving the canvas.', layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element',
-    preview: 'Preview', source: 'Source', format: 'Format', grid: 'Grid', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
+    preview: 'Preview', source: 'Source', format: 'Format', grid: 'Grid', mode2D: '2D', mode3D: '3D', viewMode2D: '2D view', viewMode3D: '3D view', fullscreen: 'Full-screen edit', exitFullscreen: 'Exit full-screen', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
     fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
     visible: 'Visible', livePreview: 'Live preview', statusReady: 'elements • SVG ready', changesInstant: 'Changes apply instantly', exportShort: 'Export', selected: 'Selected',
     layersCount: 'layers', elementSuffix: 'element', show: 'Show', hide: 'Hide', noSelection: 'Select a layer to edit its properties.', invalidSvg: 'This file does not contain a valid SVG.',
@@ -27,7 +27,7 @@ const COPY = {
   zh: {
     languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '打开 SVG', export: '导出 SVG',
     title: '编辑细节', subtitle: '无需离开画布，微调每一层。', layers: '图层', addLayer: '添加图层', addElement: '添加元素',
-    preview: '预览', source: '源码', format: '格式化', grid: '网格', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
+    preview: '预览', source: '源码', format: '格式化', grid: '网格', mode2D: '2D', mode3D: '3D', viewMode2D: '2D 查看', viewMode3D: '3D 查看', fullscreen: '全屏编辑', exitFullscreen: '退出全屏', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
     fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
     visible: '可见', livePreview: '实时预览', statusReady: '个元素 · SVG 就绪', changesInstant: '更改会即时生效', exportShort: '导出', selected: '已选中',
     layersCount: '个图层', elementSuffix: '元素', show: '显示', hide: '隐藏', noSelection: '选择一个图层来编辑它的属性。', invalidSvg: '该文件不包含有效的 SVG。',
@@ -36,6 +36,7 @@ const COPY = {
 
 const ZH_TAG_NAMES = { rect: '矩形', circle: '圆形', ellipse: '椭圆', line: '直线', polyline: '折线', polygon: '多边形', path: '路径', text: '文字', g: '分组', image: '图片' }
 const ZH_LAYER_NAMES = { Background: '背景', 'Logo mark': '标志图形', Wordmark: '文字标志' }
+const ADD_LAYER_TAGS = ['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text']
 
 function getLayerDisplayName(item, language) {
   if (language === 'en') return item.name
@@ -61,6 +62,9 @@ function Icon({ name, size = 16 }) {
     plus: <><path d="M8 3v10M3 8h10" /></>,
     grid: <><rect x="2.5" y="2.5" width="5" height="5" rx="1" /><rect x="8.5" y="2.5" width="5" height="5" rx="1" /><rect x="2.5" y="8.5" width="5" height="5" rx="1" /><rect x="8.5" y="8.5" width="5" height="5" rx="1" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
+    cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
+    expand: <><path d="M6 3H3v3M10 3h3v3M3 10v3h3M13 10v3h-3" /></>,
+    collapse: <><path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
   }
@@ -221,6 +225,84 @@ function highlightSvgSource(source) {
   return tokens.map((token) => token.startsWith('<!--') ? `<span class="syntax-comment">${escapeHtml(token)}</span>` : token.startsWith('<') ? highlightTag(token) : escapeHtml(token)).join('')
 }
 
+function getSvgDimensions(doc) {
+  const root = doc.documentElement
+  const viewBox = (root.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number)
+  if (viewBox.length === 4 && viewBox.every(Number.isFinite)) return { x: viewBox[0], y: viewBox[1], width: viewBox[2], height: viewBox[3] }
+  return { x: 0, y: 0, width: Number(root.getAttribute('width')) || 720, height: Number(root.getAttribute('height')) || 480 }
+}
+
+function createLayerMarkup(rawMarkup, tag, textContent = 'New text') {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const root = doc.documentElement
+  const bounds = getSvgDimensions(doc)
+  const centerX = bounds.x + bounds.width / 2
+  const centerY = bounds.y + bounds.height / 2
+  const newId = `node-new-${Date.now()}`
+  const node = doc.createElementNS('http://www.w3.org/2000/svg', tag)
+  const attributes = {
+    rect: { x: centerX - 100, y: centerY - 60, width: 200, height: 120, rx: 16, fill: '#C8FF4F' },
+    circle: { cx: centerX, cy: centerY, r: 72, fill: '#FF8B5C' },
+    ellipse: { cx: centerX, cy: centerY, rx: 110, ry: 72, fill: '#5B75FF' },
+    line: { x1: centerX - 140, y1: centerY, x2: centerX + 140, y2: centerY, stroke: '#C8FF4F', 'stroke-width': 12, 'stroke-linecap': 'round' },
+    polyline: { points: `${centerX - 150},${centerY + 70} ${centerX - 50},${centerY - 80} ${centerX + 45},${centerY + 45} ${centerX + 150},${centerY - 65}`, fill: 'none', stroke: '#FF8B5C', 'stroke-width': 12, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    polygon: { points: `${centerX},${centerY - 110} ${centerX + 110},${centerY + 90} ${centerX - 110},${centerY + 90}`, fill: '#5B75FF' },
+    path: { d: `M ${centerX - 125} ${centerY + 70} C ${centerX - 80} ${centerY - 115}, ${centerX + 80} ${centerY - 115}, ${centerX + 125} ${centerY + 70}`, fill: 'none', stroke: '#FF8B5C', 'stroke-width': 16, 'stroke-linecap': 'round' },
+    text: { x: centerX, y: centerY, 'text-anchor': 'middle', 'font-family': 'Manrope, Arial, sans-serif', 'font-size': 48, 'font-weight': 700, fill: '#15203A' },
+  }[tag] || { fill: '#C8FF4F' }
+  Object.entries(attributes).forEach(([attribute, value]) => node.setAttribute(attribute, String(value)))
+  node.setAttribute('data-editor-id', newId)
+  if (tag === 'text') node.textContent = textContent
+  root.appendChild(doc.createTextNode('\n  '))
+  root.appendChild(node)
+  root.appendChild(doc.createTextNode('\n'))
+  return { markup: new XMLSerializer().serializeToString(root), id: newId }
+}
+
+function copyLayerMarkup(rawMarkup, targetId) {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const node = doc.querySelector(`[data-editor-id="${targetId}"]`)
+  return node ? new XMLSerializer().serializeToString(node) : ''
+}
+
+function insertClonedLayer(rawMarkup, sourceMarkup, targetId, pastedId) {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const target = doc.querySelector(`[data-editor-id="${targetId}"]`)
+  const sourceDoc = new DOMParser().parseFromString(sourceMarkup, 'image/svg+xml')
+  const source = sourceDoc.documentElement
+  if (!target || !source) return rawMarkup
+  const clone = source.cloneNode(true)
+  clone.querySelectorAll('[data-editor-id]').forEach((node) => node.removeAttribute('data-editor-id'))
+  clone.setAttribute('data-editor-id', pastedId)
+  const usedIds = new Set(Array.from(doc.querySelectorAll('[id]')).map((node) => node.getAttribute('id')).filter(Boolean))
+  const clonedNodes = [clone, ...clone.querySelectorAll('[id]')]
+  clonedNodes.forEach((node) => {
+    const originalId = node.getAttribute('id')
+    if (!originalId) return
+    let nextId = `${originalId}-copy`
+    let suffix = 2
+    while (usedIds.has(nextId)) nextId = `${originalId}-copy-${suffix++}`
+    node.setAttribute('id', nextId)
+    usedIds.add(nextId)
+  })
+  const parent = target.parentElement || doc.documentElement
+  parent.insertBefore(clone, target.nextSibling)
+  return new XMLSerializer().serializeToString(doc.documentElement)
+}
+
+function removeLayer(rawMarkup, targetId) {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const node = doc.querySelector(`[data-editor-id="${targetId}"]`)
+  if (!node || node === doc.documentElement) return { markup: rawMarkup, nextSelectedId: targetId }
+  const parent = node.parentElement
+  const siblings = Array.from(parent?.children || []).filter((child) => child !== node && EDITABLE_TAGS.has(child.tagName))
+  const nodeIndex = Array.from(parent?.children || []).indexOf(node)
+  const nextSibling = siblings.find((sibling) => Array.from(parent.children).indexOf(sibling) > nodeIndex) || siblings[siblings.length - 1]
+  const nextSelectedId = nextSibling?.getAttribute('data-editor-id') || parent?.getAttribute('data-editor-id') || ''
+  node.remove()
+  return { markup: new XMLSerializer().serializeToString(doc.documentElement), nextSelectedId }
+}
+
 function reorderSiblingElements(rawMarkup, draggedId, targetId) {
   const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
   const dragged = doc.querySelector(`[data-editor-id="${draggedId}"]`)
@@ -250,6 +332,9 @@ function App() {
   const [elements, setElements] = useState(initial.elements)
   const [selectedId, setSelectedId] = useState('node-1')
   const [activeTab, setActiveTab] = useState('preview')
+  const [previewMode, setPreviewMode] = useState('2d')
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [addLayerMenuOpen, setAddLayerMenuOpen] = useState(false)
   const [fileName, setFileName] = useState('untitled.svg')
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -274,6 +359,7 @@ function App() {
   const layerDragRef = useRef(null)
   const suppressLayerClickRef = useRef(false)
   const sourceHighlightRef = useRef(null)
+  const clipboardLayerRef = useRef(null)
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
   const copy = COPY[language]
@@ -332,7 +418,7 @@ function App() {
       })
     })
     return () => cancelAnimationFrame(frame)
-  }, [activeTab, selectedId, svgMarkup, svgPosition.x, svgPosition.y, svgScale])
+  }, [activeTab, previewMode, selectedId, svgMarkup, svgPosition.x, svgPosition.y, svgScale])
 
   const loadSvg = (raw, name = 'untitled.svg') => {
     try {
@@ -515,6 +601,59 @@ function App() {
     reader.onload = () => loadSvg(String(reader.result), file.name)
     reader.readAsText(file)
   }
+
+  const addLayer = (tag) => {
+    const created = createLayerMarkup(svgMarkup, tag, language === 'zh' ? '新文本' : 'New text')
+    commitDocument(created.markup, { nextSelectedId: created.id })
+    setAddLayerMenuOpen(false)
+    setActiveTab('preview')
+  }
+
+  const copySelectedLayer = (event) => {
+    if (!selected) return
+    const markup = copyLayerMarkup(svgMarkup, selected.id)
+    if (!markup) return
+    clipboardLayerRef.current = markup
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(markup).catch(() => {})
+    event.preventDefault()
+  }
+
+  const pasteLayer = (event) => {
+    if (!selected || !clipboardLayerRef.current) return
+    const pastedId = `node-paste-${Date.now()}`
+    const nextMarkup = insertClonedLayer(svgMarkup, clipboardLayerRef.current, selected.id, pastedId)
+    if (nextMarkup === svgMarkup) return
+    event.preventDefault()
+    commitDocument(nextMarkup, { nextSelectedId: pastedId })
+    setActiveTab('preview')
+  }
+
+  const deleteSelectedLayer = (event) => {
+    if (!selected) return
+    const removed = removeLayer(svgMarkup, selected.id)
+    if (removed.markup === svgMarkup) return
+    event.preventDefault()
+    commitDocument(removed.markup, { nextSelectedId: removed.nextSelectedId })
+  }
+
+  useEffect(() => {
+    const handleEditorShortcuts = (event) => {
+      if (event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      const key = event.key.toLowerCase()
+      const modifier = event.metaKey || event.ctrlKey
+      if (modifier && key === 'c') {
+        copySelectedLayer(event)
+        return
+      }
+      if (modifier && key === 'v') {
+        pasteLayer(event)
+        return
+      }
+      if (key === 'delete' || key === 'backspace') deleteSelectedLayer(event)
+    }
+    window.addEventListener('keydown', handleEditorShortcuts)
+    return () => window.removeEventListener('keydown', handleEditorShortcuts)
+  }, [selectedId, svgMarkup, fileName, dirty, history])
 
   const syncSourceScroll = (event) => {
     if (!sourceHighlightRef.current) return
@@ -762,12 +901,13 @@ function App() {
   const cornerRadius = Math.min(cornerRadiusMax, Number(selectedAttrs?.getAttribute('rx') || selectedAttrs?.getAttribute('ry') || 0))
 
   return (
-    <main className="app-shell" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+    <main className={`app-shell ${isFullscreen ? 'fullscreen-mode' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
       <header className="topbar">
         <div className="brand"><span className="brand-mark"><span /></span><span>VECTOR FORGE</span></div>
         <div className="topbar-actions">
           <button className="icon-button" title={language === 'zh' ? '撤销（⌘ Z）' : 'Undo (⌘ Z)'} aria-keyshortcuts="Meta+Z" onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
           <button className="icon-button" title={language === 'zh' ? '前进（⌘ Shift Z）' : 'Redo (⌘ Shift Z)'} aria-keyshortcuts="Meta+Shift+Z" onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
+          <button className="icon-button" type="button" title={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-label={isFullscreen ? copy.exitFullscreen : copy.fullscreen} aria-pressed={isFullscreen} onClick={() => setIsFullscreen((current) => !current)}><Icon name={isFullscreen ? 'collapse' : 'expand'} /></button>
           <span className="divider" />
           <span className="save-state"><span className={`status-dot ${dirty ? 'dirty' : ''}`} />{dirty ? copy.unsaved : copy.saved}</span>
           <button className="language-toggle" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'zh' : 'en')} aria-label={copy.languageSwitch}>{copy.languageSwitch}</button>
@@ -784,7 +924,8 @@ function App() {
 
       <section className="workspace">
         <aside className="layers-panel panel">
-          <div className="panel-header"><div className="panel-title"><Icon name="layers" /><span>{copy.layers}</span></div><button className="mini-button" title={copy.addLayer}><Icon name="plus" size={14} /></button></div>
+          <div className="panel-header"><div className="panel-title"><Icon name="layers" /><span>{copy.layers}</span></div><button className="mini-button" type="button" title={copy.addLayer} aria-label={copy.addLayer} aria-expanded={addLayerMenuOpen} onClick={() => setAddLayerMenuOpen((current) => !current)}><Icon name="plus" size={14} /></button></div>
+          {addLayerMenuOpen && <div className="add-layer-menu" role="menu">{ADD_LAYER_TAGS.map((tag) => <button key={tag} type="button" role="menuitem" onClick={() => addLayer(tag)}><span className={`layer-shape shape-${tag}`} /><span>{getTagDisplayName(tag, language)}</span></button>)}</div>}
           <div className="layer-list">
             {visibleLayerItems.map(({ item, index }) => {
               const hidden = isElementHidden(item.node)
@@ -800,16 +941,16 @@ function App() {
               </div>
             })}
           </div>
-          <div className="layers-footer"><button><Icon name="plus" size={14} /> {copy.addElement}</button></div>
+          <div className="layers-footer"><button type="button" onClick={() => setAddLayerMenuOpen((current) => !current)}><Icon name="plus" size={14} /> {copy.addElement}</button></div>
         </aside>
 
         <section className="canvas-panel">
           <div className="canvas-toolbar">
             <div className="view-tabs"><button className={activeTab === 'preview' ? 'active' : ''} onClick={() => setActiveTab('preview')}><Icon name="eye" size={14} /> {copy.preview}</button><button className={activeTab === 'source' ? 'active' : ''} onClick={() => setActiveTab('source')}><Icon name="code" size={14} /> {copy.source}</button></div>
-            <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button><span className="toolbar-divider" /><button className="tool-button"><Icon name="grid" size={15} /> {copy.grid}</button></>}</div>
+            <div className="canvas-tools">{activeTab === 'source' ? <button className="tool-button" type="button" title={copy.format} onClick={formatSource}><Icon name="code" size={15} /> {copy.format}</button> : <><button className="mode-toggle" type="button" title={previewMode === '2d' ? copy.viewMode2D : copy.viewMode3D} aria-label={previewMode === '2d' ? copy.viewMode3D : copy.viewMode2D} aria-pressed={previewMode === '3d'} onClick={() => setPreviewMode((current) => current === '2d' ? '3d' : '2d')}><Icon name="cube" size={14} /><span className={previewMode === '2d' ? 'active' : ''}>{copy.mode2D}</span><span className={previewMode === '3d' ? 'active' : ''}>{copy.mode3D}</span></button><button className="zoom-readout" type="button" title={language === 'zh' ? '重置缩放' : 'Reset zoom'} onClick={() => setSvgScale(1)}>{Math.round(svgScale * 100)}%</button><span className="toolbar-divider" /><button className="tool-button"><Icon name="grid" size={15} /> {copy.grid}</button></>}</div>
           </div>
           {activeTab === 'preview' ? (
-            <div ref={canvasRef} className="canvas-stage" onClick={handleCanvasClick}>
+            <div ref={canvasRef} className={`canvas-stage mode-${previewMode}`} onClick={handleCanvasClick}>
               <div className="drop-hint"><span className="drop-icon"><Icon name="upload" size={15} /></span><span>{copy.dropHint}</span></div>
               <div
                 className={`svg-wrap ${isDraggingSvg || isDraggingElement ? 'is-dragging' : ''} ${isDraggingElement ? 'is-dragging-element' : ''} ${isPinchingSvg ? 'is-pinching' : ''}`}
