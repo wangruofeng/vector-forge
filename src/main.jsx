@@ -20,7 +20,7 @@ const COPY = {
     languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Open SVG', export: 'Export SVG',
     title: 'Edit the details', subtitle: 'Fine-tune every layer without leaving the canvas.', layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element',
     preview: 'Preview', source: 'Source', grid: 'Grid', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
-    fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
+    fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
     visible: 'Visible', livePreview: 'Live preview', statusReady: 'elements • SVG ready', changesInstant: 'Changes apply instantly', exportShort: 'Export', selected: 'Selected',
     layersCount: 'layers', elementSuffix: 'element', show: 'Show', hide: 'Hide', noSelection: 'Select a layer to edit its properties.', invalidSvg: 'This file does not contain a valid SVG.',
   },
@@ -28,7 +28,7 @@ const COPY = {
     languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '打开 SVG', export: '导出 SVG',
     title: '编辑细节', subtitle: '无需离开画布，微调每一层。', layers: '图层', addLayer: '添加图层', addElement: '添加元素',
     preview: '预览', source: '源码', grid: '网格', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
-    fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
+    fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
     visible: '可见', livePreview: '实时预览', statusReady: '个元素 · SVG 就绪', changesInstant: '更改会即时生效', exportShort: '导出', selected: '已选中',
     layersCount: '个图层', elementSuffix: '元素', show: '显示', hide: '隐藏', noSelection: '选择一个图层来编辑它的属性。', invalidSvg: '该文件不包含有效的 SVG。',
   },
@@ -139,17 +139,20 @@ function getAncestorGroupIds(elements, targetId) {
   return []
 }
 
-function getSvgPointerDelta(svgWrap, start, current) {
+function getSvgPoint(svgWrap, clientX, clientY) {
   const svg = svgWrap?.querySelector('svg')
   const rect = svg?.getBoundingClientRect()
-  if (!svg || !rect?.width || !rect?.height) return { x: current.x - start.x, y: current.y - start.y }
+  if (!svg || !rect?.width || !rect?.height) return { x: clientX, y: clientY }
   const viewBox = svg.viewBox?.baseVal
   const width = viewBox?.width || Number(svg.getAttribute('width')) || rect.width
   const height = viewBox?.height || Number(svg.getAttribute('height')) || rect.height
-  return {
-    x: (current.x - start.x) * width / rect.width,
-    y: (current.y - start.y) * height / rect.height,
-  }
+  return { x: (clientX - rect.left) * width / rect.width, y: (clientY - rect.top) * height / rect.height }
+}
+
+function getSvgPointerDelta(svgWrap, start, current) {
+  const startPoint = getSvgPoint(svgWrap, start.x, start.y)
+  const currentPoint = getSvgPoint(svgWrap, current.x, current.y)
+  return { x: currentPoint.x - startPoint.x, y: currentPoint.y - startPoint.y }
 }
 
 function updateElementTransform(rawMarkup, targetId, transform) {
@@ -188,14 +191,17 @@ function App() {
   const [svgScale, setSvgScale] = useState(1)
   const [isDraggingSvg, setIsDraggingSvg] = useState(false)
   const [isDraggingElement, setIsDraggingElement] = useState(false)
+  const [isResizingElement, setIsResizingElement] = useState(false)
   const [isPinchingSvg, setIsPinchingSvg] = useState(false)
   const [history, setHistory] = useState({ past: [], future: [] })
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [selectionBox, setSelectionBox] = useState(null)
   const fileInput = useRef(null)
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
   const svgDragRef = useRef(null)
   const elementDragRef = useRef(null)
+  const resizeRef = useRef(null)
   const layerRowRefs = useRef(new Map())
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
@@ -231,6 +237,30 @@ function App() {
     const row = layerRowRefs.current.get(selectedId)
     if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [selectedId, visibleLayerItems.length])
+
+  useEffect(() => {
+    if (activeTab !== 'preview' || !selectedId) {
+      setSelectionBox(null)
+      return undefined
+    }
+    const frame = requestAnimationFrame(() => {
+      const stage = canvasRef.current
+      const target = svgRef.current?.querySelector(`[data-editor-id="${selectedId}"]`)
+      if (!stage || !target) {
+        setSelectionBox(null)
+        return
+      }
+      const stageRect = stage.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      setSelectionBox({
+        left: targetRect.left - stageRect.left,
+        top: targetRect.top - stageRect.top,
+        width: targetRect.width,
+        height: targetRect.height,
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [activeTab, selectedId, svgMarkup, svgPosition.x, svgPosition.y, svgScale])
 
   const loadSvg = (raw, name = 'untitled.svg') => {
     try {
@@ -316,6 +346,22 @@ function App() {
     if (!node) return
     if (value === '' || value == null) node.removeAttribute(attribute)
     else node.setAttribute(attribute, value)
+    const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
+    commitDocument(nextMarkup, { nextSelectedId: selected.id })
+  }
+
+  const updateRectRadius = (value) => {
+    if (!selected || selected.tag !== 'rect') return
+    const doc = new DOMParser().parseFromString(svgMarkup, 'image/svg+xml')
+    const node = doc.querySelector(`[data-editor-id="${selected.id}"]`)
+    if (!node) return
+    if (value === '' || value == null || Number(value) === 0) {
+      node.removeAttribute('rx')
+      node.removeAttribute('ry')
+    } else {
+      node.setAttribute('rx', value)
+      node.setAttribute('ry', value)
+    }
     const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
     commitDocument(nextMarkup, { nextSelectedId: selected.id })
   }
@@ -475,6 +521,76 @@ function App() {
     setIsDraggingSvg(false)
   }
 
+  const handleResizePointerDown = (event, handle) => {
+    if (!selectionBox || !selected || resizeRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    const target = svgRef.current?.querySelector(`[data-editor-id="${selected.id}"]`)
+    const baseBox = target?.getBoundingClientRect()
+    if (!target || !baseBox?.width || !baseBox?.height) return
+    const pointerId = event.pointerId ?? 'mouse'
+    if (event.pointerId != null && event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId)
+    resizeRef.current = {
+      pointerId,
+      targetId: selected.id,
+      handle,
+      baseBox,
+      baseMarkup: svgMarkup,
+      baseSnapshot: currentSnapshot(),
+      baseTransform: target.getAttribute('transform') || '',
+      previewMarkup: svgMarkup,
+      moved: false,
+    }
+    window.addEventListener('pointermove', handleResizePointerMove)
+    window.addEventListener('pointerup', handleResizePointerUp)
+    window.addEventListener('mousemove', handleResizePointerMove)
+    window.addEventListener('mouseup', handleResizePointerUp)
+    setIsResizingElement(true)
+  }
+
+  const handleResizePointerMove = (event) => {
+    const resize = resizeRef.current
+    if (!resize || (event.pointerId != null && resize.pointerId !== event.pointerId)) return
+    event.preventDefault()
+    const { baseBox } = resize
+    const minSize = 8
+    const anchor = resize.handle === 'top-left'
+      ? { x: baseBox.right, y: baseBox.bottom }
+      : { x: baseBox.left, y: baseBox.top }
+    const width = resize.handle === 'top-left'
+      ? anchor.x - Math.min(event.clientX, anchor.x - minSize)
+      : Math.max(event.clientX, anchor.x + minSize) - anchor.x
+    const height = resize.handle === 'top-left'
+      ? anchor.y - Math.min(event.clientY, anchor.y - minSize)
+      : Math.max(event.clientY, anchor.y + minSize) - anchor.y
+    const scaleX = width / baseBox.width
+    const scaleY = height / baseBox.height
+    const anchorPoint = getSvgPoint(svgRef.current, anchor.x, anchor.y)
+    const resizeTransform = `translate(${anchorPoint.x.toFixed(2)} ${anchorPoint.y.toFixed(2)}) scale(${scaleX.toFixed(4)} ${scaleY.toFixed(4)}) translate(${-anchorPoint.x.toFixed(2)} ${-anchorPoint.y.toFixed(2)})`
+    const nextTransform = resize.baseTransform ? `${resizeTransform} ${resize.baseTransform}` : resizeTransform
+    const nextMarkup = updateElementTransform(resize.baseMarkup, resize.targetId, nextTransform)
+    resize.previewMarkup = nextMarkup
+    resize.moved = true
+    setSvgMarkup(nextMarkup)
+  }
+
+  const handleResizePointerUp = (event, cancelled = false) => {
+    const resize = resizeRef.current
+    if (!resize || (event.pointerId != null && resize.pointerId !== event.pointerId)) return
+    if (event.pointerId != null && event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    window.removeEventListener('pointermove', handleResizePointerMove)
+    window.removeEventListener('pointerup', handleResizePointerUp)
+    window.removeEventListener('mousemove', handleResizePointerMove)
+    window.removeEventListener('mouseup', handleResizePointerUp)
+    if (cancelled) {
+      setSvgMarkup(resize.baseMarkup)
+    } else if (resize.moved) {
+      commitDocument(resize.previewMarkup, { nextSelectedId: resize.targetId, historySnapshot: resize.baseSnapshot, forceHistory: true })
+    }
+    resizeRef.current = null
+    setIsResizingElement(false)
+  }
+
   useEffect(() => {
     const stage = canvasRef.current
     if (!stage || activeTab !== 'preview') return undefined
@@ -496,14 +612,18 @@ function App() {
   const stroke = getColor(selectedAttrs?.getAttribute('stroke'), '#15203A')
   const opacity = Number(selectedAttrs?.getAttribute('opacity') || 1)
   const strokeWidth = Number(selectedAttrs?.getAttribute('stroke-width') || 0)
+  const rectWidth = Number(selectedAttrs?.getAttribute('width')) || 200
+  const rectHeight = Number(selectedAttrs?.getAttribute('height')) || 200
+  const cornerRadiusMax = Math.max(1, Math.floor(Math.min(rectWidth, rectHeight) / 2))
+  const cornerRadius = Math.min(cornerRadiusMax, Number(selectedAttrs?.getAttribute('rx') || selectedAttrs?.getAttribute('ry') || 0))
 
   return (
     <main className="app-shell" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
       <header className="topbar">
         <div className="brand"><span className="brand-mark"><span /></span><span>VECTOR FORGE</span></div>
         <div className="topbar-actions">
-          <button className="icon-button" title={language === 'zh' ? '撤销' : 'Undo'} onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
-          <button className="icon-button" title={language === 'zh' ? '前进' : 'Redo'} onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
+          <button className="icon-button" title={language === 'zh' ? '撤销（⌘ Z）' : 'Undo (⌘ Z)'} aria-keyshortcuts="Meta+Z" onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
+          <button className="icon-button" title={language === 'zh' ? '前进（⌘ Shift Z）' : 'Redo (⌘ Shift Z)'} aria-keyshortcuts="Meta+Shift+Z" onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
           <span className="divider" />
           <span className="save-state"><span className={`status-dot ${dirty ? 'dirty' : ''}`} />{dirty ? copy.unsaved : copy.saved}</span>
           <button className="language-toggle" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'zh' : 'en')} aria-label={copy.languageSwitch}>{copy.languageSwitch}</button>
@@ -557,6 +677,10 @@ function App() {
                 onPointerCancel={(event) => handleSvgPointerUp(event, true)}
                 dangerouslySetInnerHTML={{ __html: svgMarkup.replace(`data-editor-id="${selectedId}"`, `data-editor-id="${selectedId}" class="is-selected"`) }}
               />
+              {selectionBox && selected && <div className={`selection-overlay ${isResizingElement ? 'is-resizing' : ''}`} style={{ left: selectionBox.left, top: selectionBox.top, width: selectionBox.width, height: selectionBox.height }} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)}>
+                <button className="resize-handle resize-handle-top-left" type="button" aria-label={language === 'zh' ? '从左上角调整大小' : 'Resize from top left'} title={language === 'zh' ? '从左上角调整大小' : 'Resize from top left'} onPointerDown={(event) => handleResizePointerDown(event, 'top-left')} onMouseDown={(event) => handleResizePointerDown(event, 'top-left')} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)} />
+                <button className="resize-handle resize-handle-bottom-right" type="button" aria-label={language === 'zh' ? '从右下角调整大小' : 'Resize from bottom right'} title={language === 'zh' ? '从右下角调整大小' : 'Resize from bottom right'} onPointerDown={(event) => handleResizePointerDown(event, 'bottom-right')} onMouseDown={(event) => handleResizePointerDown(event, 'bottom-right')} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)} />
+              </div>}
             </div>
           ) : (
             <textarea className="source-editor" value={sourceDraft} onChange={(event) => setSourceDraft(event.target.value)} onBlur={() => { try { commitDocument(sourceDraft, { nextSelectedId: selectedId }) } catch (err) { setError(language === 'zh' ? copy.invalidSvg : err.message) } }} spellCheck="false" />
@@ -574,6 +698,7 @@ function App() {
               <ColorField label={copy.stroke} value={stroke} onChange={(value) => updateAttribute('stroke', value)} />
               <div className="field-row"><label>{copy.opacity}</label><div className="range-wrap"><input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(event) => updateAttribute('opacity', event.target.value)} /><span>{Math.round(opacity * 100)}%</span></div></div>
               <div className="field-row"><label>{copy.strokeWidth}</label><div className="range-wrap"><input type="range" min="0" max="24" step="1" value={strokeWidth} onChange={(event) => updateAttribute('stroke-width', event.target.value)} /><span>{strokeWidth}px</span></div></div>
+              {selected.tag === 'rect' && <div className="field-row"><label>{copy.cornerRadius}</label><div className="range-wrap"><input type="range" min="0" max={cornerRadiusMax} step="1" value={cornerRadius} onChange={(event) => updateRectRadius(event.target.value)} /><span>{cornerRadius}px</span></div></div>}
             </div>
             <div className="inspector-section"><div className="section-label">{copy.elementDetails}</div><div className="detail-grid"><div><span>{copy.layer}</span><strong>{String(elements.indexOf(selected) + 1).padStart(2, '0')} / {String(elements.length).padStart(2, '0')}</strong></div><div><span>{copy.visibility}</span><strong>{copy.visible}</strong></div></div></div>
           </> : <div className="empty-inspector">{copy.noSelection}</div>}
