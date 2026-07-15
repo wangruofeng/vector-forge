@@ -62,8 +62,8 @@ function Icon({ name, size = 16 }) {
     plus: <><path d="M8 3v10M3 8h10" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
-    expand: <><path d="M7 3H3v4M3 3l4 4M9 3h4v4M13 3 9 7M3 9v4h4M3 13l4-4M13 9v4H9M13 13l-4-4" /></>,
-    collapse: <><path d="M7 7 3 3M7 7V4M7 7H4M9 7l4-4M9 7V4M9 7h3M7 9l-4 4M7 9v3M7 9H4M9 9l4 4M9 9v3M9 9h3" /></>,
+    expand: <path d="M7 3H3v4M9 3h4v4M3 9v4h4M13 9v4H9" />,
+    collapse: <path d="M6 6H3V3M10 6h3V3M3 10v3h3M13 10h-3v3" />,
     sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" /></>,
     x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
     check: <path d="m3 8 3 3 5-6" />,
@@ -350,6 +350,8 @@ function App() {
   const [draggingLayerId, setDraggingLayerId] = useState('')
   const [dragOverLayerId, setDragOverLayerId] = useState('')
   const [selectionBox, setSelectionBox] = useState(null)
+  const [editingTextId, setEditingTextId] = useState('')
+  const [textDraft, setTextDraft] = useState('')
   const fileInput = useRef(null)
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
@@ -361,6 +363,7 @@ function App() {
   const suppressLayerClickRef = useRef(false)
   const sourceHighlightRef = useRef(null)
   const clipboardLayerRef = useRef(null)
+  const textEditRef = useRef(null)
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
   const copy = COPY[language]
@@ -375,6 +378,20 @@ function App() {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
     document.title = language === 'zh' ? 'Vector Forge — SVG 编辑器' : 'Vector Forge — SVG editor'
   }, [language])
+
+  useEffect(() => {
+    if (!editingTextId) return
+    textEditRef.current?.focus()
+    textEditRef.current?.select()
+  }, [editingTextId])
+
+  useEffect(() => {
+    const handleOutsideLayerMenu = (event) => {
+      if (!event.target?.closest?.('.layers-panel')) setAddLayerMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', handleOutsideLayerMenu)
+    return () => document.removeEventListener('pointerdown', handleOutsideLayerMenu)
+  }, [])
 
   useEffect(() => {
     const ancestorIds = getAncestorGroupIds(elements, selectedId)
@@ -524,6 +541,20 @@ function App() {
     const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
     commitDocument(nextMarkup, { nextSelectedId: selected.id })
   }
+
+  const commitTextEdit = () => {
+    if (!editingTextId) return
+    const doc = new DOMParser().parseFromString(svgMarkup, 'image/svg+xml')
+    const node = doc.querySelector(`[data-editor-id="${editingTextId}"]`)
+    if (node) {
+      node.textContent = textDraft
+      const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
+      commitDocument(nextMarkup, { nextSelectedId: editingTextId })
+    }
+    setEditingTextId('')
+  }
+
+  const cancelTextEdit = () => setEditingTextId('')
 
   const toggleVisibility = (item, event) => {
     event.stopPropagation()
@@ -696,6 +727,17 @@ function App() {
 
   const handleCanvasClick = (event) => {
     selectElementAtPoint(event.clientX, event.clientY, event.target)
+  }
+
+  const handleSvgDoubleClick = (event) => {
+    const target = event.target?.closest?.('[data-editor-id]')
+    const item = target ? elements.find((element) => element.id === target.getAttribute('data-editor-id')) : null
+    if (!item || item.tag !== 'text') return
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedId(item.id)
+    setTextDraft(target.textContent || '')
+    setEditingTextId(item.id)
   }
 
   const handleSvgPointerDown = (event) => {
@@ -942,7 +984,6 @@ function App() {
               </div>
             })}
           </div>
-          <div className="layers-footer"><button type="button" onClick={() => setAddLayerMenuOpen((current) => !current)}><Icon name="plus" size={14} /> {copy.addElement}</button></div>
         </aside>
 
         <section className="canvas-panel">
@@ -961,8 +1002,24 @@ function App() {
                 onPointerMove={handleSvgPointerMove}
                 onPointerUp={handleSvgPointerUp}
                 onPointerCancel={(event) => handleSvgPointerUp(event, true)}
+                onDoubleClick={handleSvgDoubleClick}
                 dangerouslySetInnerHTML={{ __html: svgMarkup.replace(`data-editor-id="${selectedId}"`, `data-editor-id="${selectedId}" class="is-selected"`) }}
               />
+              {editingTextId === selectedId && selected?.tag === 'text' && selectionBox && <input
+                ref={textEditRef}
+                className="text-edit-input"
+                style={{ left: selectionBox.left - 5, top: selectionBox.top - 5, width: Math.max(selectionBox.width + 10, 120) }}
+                value={textDraft}
+                onChange={(event) => setTextDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  event.stopPropagation()
+                  if (event.key === 'Enter') { event.preventDefault(); commitTextEdit() }
+                  if (event.key === 'Escape') { event.preventDefault(); cancelTextEdit() }
+                }}
+                onBlur={commitTextEdit}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={language === 'zh' ? '编辑文本内容' : 'Edit text content'}
+              />}
               {selectionBox && selected && <div className={`selection-overlay ${isResizingElement ? 'is-resizing' : ''}`} style={{ left: selectionBox.left, top: selectionBox.top, width: selectionBox.width, height: selectionBox.height }} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)}>
                 <button className="resize-handle resize-handle-top-left" type="button" aria-label={language === 'zh' ? '从左上角调整大小' : 'Resize from top left'} title={language === 'zh' ? '从左上角调整大小' : 'Resize from top left'} onPointerDown={(event) => handleResizePointerDown(event, 'top-left')} onMouseDown={(event) => handleResizePointerDown(event, 'top-left')} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)} />
                 <button className="resize-handle resize-handle-bottom-right" type="button" aria-label={language === 'zh' ? '从右下角调整大小' : 'Resize from bottom right'} title={language === 'zh' ? '从右下角调整大小' : 'Resize from bottom right'} onPointerDown={(event) => handleResizePointerDown(event, 'bottom-right')} onMouseDown={(event) => handleResizePointerDown(event, 'bottom-right')} onPointerMove={handleResizePointerMove} onPointerUp={handleResizePointerUp} onPointerCancel={(event) => handleResizePointerUp(event, true)} />
