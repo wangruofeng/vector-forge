@@ -554,7 +554,7 @@ function App() {
         <aside className="inspector-panel panel">
           <div className="panel-header"><div className="panel-title"><span>{copy.inspector}</span></div><button className="mini-button"><Icon name="x" size={14} /></button></div>
           {selected ? <>
-            <div className="selection-summary"><div className={`selection-icon tag-${selected.tag}`}>{selected.tag.slice(0, 2).toUpperCase()}</div><div><strong>{selectedDisplayName}</strong><span>{getTagDisplayName(selected.tag, language)} {copy.elementSuffix}</span></div><span className="selection-check"><Icon name="check" size={13} /></span></div>
+            <div className="selection-summary"><div className={`selection-icon tag-${selected.tag}`}>{selected.tag.slice(0, 2).toUpperCase()}</div><div className="selection-meta"><strong>{selectedDisplayName}</strong><span>{getTagDisplayName(selected.tag, language)} {copy.elementSuffix}</span></div><span className="selection-check"><Icon name="check" size={13} /></span></div>
             <div className="inspector-section"><div className="section-label">{copy.appearance}</div>
               <ColorField label={copy.fill} value={fill} onChange={(value) => updateAttribute('fill', value)} />
               <ColorField label={copy.stroke} value={stroke} onChange={(value) => updateAttribute('stroke', value)} />
