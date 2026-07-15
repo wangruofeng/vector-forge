@@ -295,6 +295,20 @@ function App() {
     restoreSnapshot(next)
   }
 
+  useEffect(() => {
+    const handleHistoryShortcut = (event) => {
+      if (!event.metaKey || event.altKey || event.key.toLowerCase() !== 'z') return
+      if (event.target?.closest?.('input, textarea, [contenteditable="true"]')) return
+      const action = event.shiftKey ? redo : undo
+      const canRun = event.shiftKey ? history.future.length : history.past.length
+      if (!canRun) return
+      event.preventDefault()
+      action()
+    }
+    window.addEventListener('keydown', handleHistoryShortcut)
+    return () => window.removeEventListener('keydown', handleHistoryShortcut)
+  }, [dirty, fileName, history, selectedId, svgMarkup])
+
   const updateAttribute = (attribute, value) => {
     if (!selected) return
     const doc = new DOMParser().parseFromString(svgMarkup, 'image/svg+xml')
