@@ -129,6 +129,38 @@ function pointerDistance(first, second) {
   return Math.hypot(second.x - first.x, second.y - first.y)
 }
 
+function getAncestorGroupIds(elements, targetId) {
+  const ancestors = []
+  for (const item of elements) {
+    while (ancestors.length && ancestors[ancestors.length - 1].depth >= item.depth) ancestors.pop()
+    if (item.id === targetId) return ancestors.filter((ancestor) => ancestor.tag === 'g').map((ancestor) => ancestor.id)
+    ancestors.push(item)
+  }
+  return []
+}
+
+function getSvgPointerDelta(svgWrap, start, current) {
+  const svg = svgWrap?.querySelector('svg')
+  const rect = svg?.getBoundingClientRect()
+  if (!svg || !rect?.width || !rect?.height) return { x: current.x - start.x, y: current.y - start.y }
+  const viewBox = svg.viewBox?.baseVal
+  const width = viewBox?.width || Number(svg.getAttribute('width')) || rect.width
+  const height = viewBox?.height || Number(svg.getAttribute('height')) || rect.height
+  return {
+    x: (current.x - start.x) * width / rect.width,
+    y: (current.y - start.y) * height / rect.height,
+  }
+}
+
+function updateElementTransform(rawMarkup, targetId, transform) {
+  const doc = new DOMParser().parseFromString(rawMarkup, 'image/svg+xml')
+  const node = doc.querySelector(`[data-editor-id="${targetId}"]`)
+  if (!node) return rawMarkup
+  if (transform) node.setAttribute('transform', transform)
+  else node.removeAttribute('transform')
+  return new XMLSerializer().serializeToString(doc.documentElement)
+}
+
 function getVisibleLayerItems(elements, expandedGroups) {
   const visible = []
   const ancestors = []
@@ -155,6 +187,7 @@ function App() {
   const [svgPosition, setSvgPosition] = useState({ x: 0, y: 0 })
   const [svgScale, setSvgScale] = useState(1)
   const [isDraggingSvg, setIsDraggingSvg] = useState(false)
+  const [isDraggingElement, setIsDraggingElement] = useState(false)
   const [isPinchingSvg, setIsPinchingSvg] = useState(false)
   const [history, setHistory] = useState({ past: [], future: [] })
   const [expandedGroups, setExpandedGroups] = useState({})
@@ -162,6 +195,8 @@ function App() {
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
   const svgDragRef = useRef(null)
+  const elementDragRef = useRef(null)
+  const layerRowRefs = useRef(new Map())
   const activePointersRef = useRef(new Map())
   const pinchRef = useRef(null)
   const copy = COPY[language]
@@ -175,6 +210,27 @@ function App() {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
     document.title = language === 'zh' ? 'Vector Forge — SVG 编辑器' : 'Vector Forge — SVG editor'
   }, [language])
+
+  useEffect(() => {
+    const ancestorIds = getAncestorGroupIds(elements, selectedId)
+    if (!ancestorIds.length) return
+    setExpandedGroups((current) => {
+      const next = { ...current }
+      let changed = false
+      ancestorIds.forEach((id) => {
+        if (next[id] === false) {
+          next[id] = true
+          changed = true
+        }
+      })
+      return changed ? next : current
+    })
+  }, [elements, selectedId])
+
+  useEffect(() => {
+    const row = layerRowRefs.current.get(selectedId)
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedId, visibleLayerItems.length])
 
   const loadSvg = (raw, name = 'untitled.svg') => {
     try {
@@ -198,14 +254,14 @@ function App() {
 
   const currentSnapshot = () => ({ svgMarkup, fileName, selectedId, dirty })
 
-  const commitDocument = (rawMarkup, { nextSelectedId = selectedId, nextFileName = fileName, nextDirty = true } = {}) => {
+  const commitDocument = (rawMarkup, { nextSelectedId = selectedId, nextFileName = fileName, nextDirty = true, historySnapshot = currentSnapshot(), forceHistory = false } = {}) => {
     const parsed = parseSvg(rawMarkup)
-    if (parsed.markup === svgMarkup && nextFileName === fileName && nextDirty === dirty) {
+    if (!forceHistory && parsed.markup === svgMarkup && nextFileName === fileName && nextDirty === dirty) {
       setSourceDraft(parsed.markup)
       return
     }
     const validSelectedId = parsed.elements.some((item) => item.id === nextSelectedId) ? nextSelectedId : parsed.elements[0]?.id || ''
-    setHistory((current) => ({ past: [...current.past, currentSnapshot()], future: [] }))
+    setHistory((current) => ({ past: [...current.past, historySnapshot], future: [] }))
     setSvgMarkup(parsed.markup)
     setSourceDraft(parsed.markup)
     setElements(parsed.elements)
@@ -303,6 +359,7 @@ function App() {
     event.preventDefault()
     event.stopPropagation()
     selectElementAtPoint(event.clientX, event.clientY, event.target)
+    const elementTarget = event.target?.closest?.('[data-editor-id]')
     activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
     event.currentTarget.setPointerCapture(event.pointerId)
 
@@ -310,8 +367,28 @@ function App() {
       const [first, second] = [...activePointersRef.current.values()]
       pinchRef.current = { distance: pointerDistance(first, second), scale: svgScale }
       svgDragRef.current = null
+      elementDragRef.current = null
       setIsDraggingSvg(false)
+      setIsDraggingElement(false)
       setIsPinchingSvg(true)
+      return
+    }
+
+    if (elementTarget) {
+      elementDragRef.current = {
+        pointerId: event.pointerId,
+        targetId: elementTarget.getAttribute('data-editor-id'),
+        startX: event.clientX,
+        startY: event.clientY,
+        baseMarkup: svgMarkup,
+        baseSnapshot: currentSnapshot(),
+        baseTransform: elementTarget.getAttribute('transform') || '',
+        previewMarkup: svgMarkup,
+        moved: false,
+      }
+      svgDragRef.current = null
+      setIsDraggingSvg(false)
+      setIsDraggingElement(false)
       return
     }
 
@@ -321,6 +398,8 @@ function App() {
       startY: event.clientY,
       origin: svgPosition,
     }
+    elementDragRef.current = null
+    setIsDraggingElement(false)
     setIsDraggingSvg(true)
   }
 
@@ -336,6 +415,21 @@ function App() {
       return
     }
 
+    const elementDrag = elementDragRef.current
+    if (elementDrag && elementDrag.pointerId === event.pointerId) {
+      const screenDistance = Math.hypot(event.clientX - elementDrag.startX, event.clientY - elementDrag.startY)
+      if (screenDistance <= 2) return
+      const delta = getSvgPointerDelta(svgRef.current, { x: elementDrag.startX, y: elementDrag.startY }, { x: event.clientX, y: event.clientY })
+      const translate = `translate(${delta.x.toFixed(2)} ${delta.y.toFixed(2)})`
+      const nextTransform = elementDrag.baseTransform ? `${translate} ${elementDrag.baseTransform}` : translate
+      const nextMarkup = updateElementTransform(elementDrag.baseMarkup, elementDrag.targetId, nextTransform)
+      elementDrag.previewMarkup = nextMarkup
+      elementDrag.moved = true
+      setSvgMarkup(nextMarkup)
+      setIsDraggingElement(true)
+      return
+    }
+
     const drag = svgDragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     setSvgPosition({
@@ -344,7 +438,7 @@ function App() {
     })
   }
 
-  const handleSvgPointerUp = (event) => {
+  const handleSvgPointerUp = (event, cancelled = false) => {
     activePointersRef.current.delete(event.pointerId)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (activePointersRef.current.size < 2) {
@@ -352,6 +446,17 @@ function App() {
       setIsPinchingSvg(false)
     }
     if (activePointersRef.current.size > 0) return
+
+    const elementDrag = elementDragRef.current
+    if (elementDrag && elementDrag.pointerId === event.pointerId) {
+      if (cancelled || !elementDrag.moved) {
+        if (elementDrag.previewMarkup !== elementDrag.baseMarkup) setSvgMarkup(elementDrag.baseMarkup)
+      } else {
+        commitDocument(elementDrag.previewMarkup, { nextSelectedId: elementDrag.targetId, historySnapshot: elementDrag.baseSnapshot, forceHistory: true })
+      }
+      elementDragRef.current = null
+      setIsDraggingElement(false)
+    }
     svgDragRef.current = null
     setIsDraggingSvg(false)
   }
@@ -408,7 +513,7 @@ function App() {
               const displayName = getLayerDisplayName(item, language)
               const isGroup = item.tag === 'g'
               const isExpanded = expandedGroups[item.id] !== false
-              return <div key={item.id} className={`layer-row ${item.id === selectedId ? 'selected' : ''} ${hidden ? 'hidden' : ''}`} style={{ paddingLeft: `${14 + item.depth * 15}px` }} role="button" tabIndex="0" onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(item.id) }}>
+              return <div key={item.id} ref={(node) => { if (node) layerRowRefs.current.set(item.id, node); else layerRowRefs.current.delete(item.id) }} className={`layer-row ${item.id === selectedId ? 'selected' : ''} ${hidden ? 'hidden' : ''}`} style={{ paddingLeft: `${14 + item.depth * 15}px` }} role="button" tabIndex="0" onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(item.id) }}>
                 <span className="layer-chevron">{isGroup ? <button className={`layer-collapse-toggle ${isExpanded ? 'expanded' : 'collapsed'}`} type="button" title={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-label={isExpanded ? (language === 'zh' ? '折叠分组' : 'Collapse group') : (language === 'zh' ? '展开分组' : 'Expand group')} aria-expanded={isExpanded} onClick={(event) => toggleGroup(item, event)}><Icon name="chevron" size={13} /></button> : ''}</span>
                 <span className={`layer-shape shape-${item.tag}`} />
                 <span className="layer-name">{displayName}</span>
@@ -429,13 +534,13 @@ function App() {
             <div ref={canvasRef} className="canvas-stage" onClick={handleCanvasClick}>
               <div className="drop-hint"><span className="drop-icon"><Icon name="upload" size={15} /></span><span>{copy.dropHint}</span></div>
               <div
-                className={`svg-wrap ${isDraggingSvg ? 'is-dragging' : ''} ${isPinchingSvg ? 'is-pinching' : ''}`}
+                className={`svg-wrap ${isDraggingSvg || isDraggingElement ? 'is-dragging' : ''} ${isDraggingElement ? 'is-dragging-element' : ''} ${isPinchingSvg ? 'is-pinching' : ''}`}
                 ref={svgRef}
                 style={{ '--svg-x': `${svgPosition.x}px`, '--svg-y': `${svgPosition.y}px`, '--svg-scale': svgScale }}
                 onPointerDown={handleSvgPointerDown}
                 onPointerMove={handleSvgPointerMove}
                 onPointerUp={handleSvgPointerUp}
-                onPointerCancel={handleSvgPointerUp}
+                onPointerCancel={(event) => handleSvgPointerUp(event, true)}
                 dangerouslySetInnerHTML={{ __html: svgMarkup.replace(`data-editor-id="${selectedId}"`, `data-editor-id="${selectedId}" class="is-selected"`) }}
               />
             </div>
