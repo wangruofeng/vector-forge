@@ -19,7 +19,7 @@ const EDITABLE_TAGS = new Set(['rect', 'circle', 'ellipse', 'line', 'polyline', 
 
 const COPY = {
   en: {
-    languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Open SVG', export: 'Export SVG',
+    languageSwitch: '中文', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Import SVG', export: 'Export SVG',
     title: 'Edit the details', subtitle: 'Fine-tune every layer without leaving the canvas.', layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element', loadDemo: 'Load demo SVG', textContent: 'Text content', editText: 'Edit text content', fontSize: 'Font size', letterSpacing: 'Character spacing', fontFamily: 'Font family', fontFamilyPlaceholder: 'e.g. Arial, sans-serif',
     preview: 'Preview', source: 'Source', format: 'Format', mode2D: '2D', mode3D: '3D', viewMode2D: '2D view', viewMode3D: '3D view', resetView: 'Reset view and center', fullscreen: 'Full-screen edit', exitFullscreen: 'Exit full-screen', collapseLayers: 'Collapse layers', expandLayers: 'Expand layers', collapseInspector: 'Collapse properties', expandInspector: 'Expand properties', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
     fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', width: 'Width', height: 'Height', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
@@ -27,7 +27,7 @@ const COPY = {
     layersCount: 'layers', elementSuffix: 'element', show: 'Show', hide: 'Hide', noSelection: 'Select a layer to edit its properties.', invalidSvg: 'This file does not contain a valid SVG.',
   },
   zh: {
-    languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '打开 SVG', export: '导出 SVG',
+    languageSwitch: 'English', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '导入 SVG', export: '导出 SVG',
     title: '编辑细节', subtitle: '无需离开画布，微调每一层。', layers: '图层', addLayer: '添加图层', addElement: '添加元素', loadDemo: '加载 Demo SVG', textContent: '文字内容', editText: '编辑文字内容', fontSize: '字体大小', letterSpacing: '字符间距', fontFamily: '字体家族', fontFamilyPlaceholder: '例如 Arial, sans-serif',
     preview: '预览', source: '源码', format: '格式化', mode2D: '2D', mode3D: '3D', viewMode2D: '2D 查看', viewMode3D: '3D 查看', resetView: '重置视图并居中', fullscreen: '全屏编辑', exitFullscreen: '退出全屏', collapseLayers: '折叠图层面板', expandLayers: '展开图层面板', collapseInspector: '折叠属性面板', expandInspector: '展开属性面板', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
     fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', width: '宽度', height: '高度', elementDetails: '元素详情', layer: '图层', visibility: '可见性',
@@ -1241,8 +1241,8 @@ function App() {
           <span className="divider" />
           <span className="save-state"><span className={`status-dot ${dirty ? 'dirty' : ''}`} />{dirty ? copy.unsaved : copy.saved}</span>
           <button className="language-toggle" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'zh' : 'en')} aria-label={copy.languageSwitch}>{copy.languageSwitch}</button>
-          <button className="button button-quiet" onClick={() => fileInput.current?.click()}><Icon name="upload" /> {copy.open}</button>
-          <button className="button button-accent" onClick={exportSvg}><Icon name="download" /> {copy.export}</button>
+          <button className="button button-quiet" onClick={() => fileInput.current?.click()}><Icon name="download" /> {copy.open}</button>
+          <button className="button button-accent" onClick={exportSvg}><Icon name="upload" /> {copy.export}</button>
           <input ref={fileInput} type="file" accept="image/svg+xml,.svg" hidden onChange={(event) => handleFile(event.target.files?.[0])} />
         </div>
       </header>
