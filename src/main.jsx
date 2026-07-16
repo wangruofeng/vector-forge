@@ -62,7 +62,7 @@ function Icon({ name, size = 16 }) {
     plus: <><path d="M8 3v10M3 8h10" /></>,
     code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
     cube: <><path d="m8 2 5 3v6l-5 3-5-3V5l5-3Z" /><path d="m3 5 5 3 5-3M8 8v6" /></>,
-    expand: <path d="M6.4 2.6H3.4V5.6M9.6 2.6h3v3M3.4 10.4v3h3M12.6 10.4v3h-3" />,
+    expand: <path d="M3 6V3h3M10 3h3v3M13 10v3h-3M6 13H3v-3" />,
     exitFullscreen: <>
         <path d="M5 3v3H3" />
         <path d="M11 3v3h2" />
@@ -374,7 +374,7 @@ function App() {
   const pinchRef = useRef(null)
   const copy = COPY[language]
 
-  const selected = elements.find((item) => item.id === selectedId) || elements[0]
+  const selected = elements.find((item) => item.id === selectedId)
   const selectedAttrs = selected ? selected.node : null
   const selectedDisplayName = selected ? getLayerDisplayName(selected, language) : ''
   const visibleLayerItems = getVisibleLayerItems(elements, expandedGroups)
@@ -683,6 +683,10 @@ function App() {
     const handleEditorShortcuts = (event) => {
       if (event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return
       const key = event.key.toLowerCase()
+      if (key === 'escape') {
+        setSelectedId('')
+        return
+      }
       const modifier = event.metaKey || event.ctrlKey
       if (modifier && key === 'c') {
         copySelectedLayer(event)
