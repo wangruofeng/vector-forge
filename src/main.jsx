@@ -142,7 +142,7 @@ function setElementVisibility(node, hidden) {
 }
 
 function clampScale(value) {
-  return Math.min(3, Math.max(0.5, value))
+  return Math.min(4, Math.max(0.5, value))
 }
 
 function pointerDistance(first, second) {
@@ -1334,9 +1334,9 @@ function App() {
               {selected.tag === 'rect' && <div className="text-property-grid"><NumericField id="rect-width-input" label={copy.width} value={rectWidthValue} min={0} step={1} suffix="px" onPreview={(value) => previewAttribute('width', value)} onCommit={commitPreviewAttributes} /><NumericField id="rect-height-input" label={copy.height} value={rectHeightValue} min={0} step={1} suffix="px" onPreview={(value) => previewAttribute('height', value)} onCommit={commitPreviewAttributes} /></div>}
               <ColorField label={copy.fill} value={fill} onPreview={(value) => previewAttribute('fill', value)} onCommit={commitPreviewAttributes} />
               <ColorField label={copy.stroke} value={stroke} onPreview={(value) => previewAttribute('stroke', value)} onCommit={commitPreviewAttributes} />
-              <div className="field-row"><label>{copy.opacity}</label><div className="range-wrap"><input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(event) => previewAttribute('opacity', event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{Math.round(opacity * 100)}%</span></div></div>
-              <div className="field-row"><label>{copy.strokeWidth}</label><div className="range-wrap"><input type="range" min="0" max="24" step="1" value={strokeWidth} onChange={(event) => previewAttribute('stroke-width', event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{strokeWidth}px</span></div></div>
-              {selected.tag === 'rect' && <div className="field-row"><label>{copy.cornerRadius}</label><div className="range-wrap"><input type="range" min="0" max={cornerRadiusMax} step="1" value={cornerRadius} onChange={(event) => previewRectRadius(event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{cornerRadius}px</span></div></div>}
+              <div className="field-row"><label>{copy.opacity}</label><div className="range-wrap"><input type="range" min="0" max="1" step="0.01" value={opacity} style={{ '--range-progress': `${opacity * 100}%` }} onChange={(event) => previewAttribute('opacity', event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{Math.round(opacity * 100)}%</span></div></div>
+              <div className="field-row"><label>{copy.strokeWidth}</label><div className="range-wrap"><input type="range" min="0" max="24" step="1" value={strokeWidth} style={{ '--range-progress': `${strokeWidth / 24 * 100}%` }} onChange={(event) => previewAttribute('stroke-width', event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{strokeWidth}px</span></div></div>
+              {selected.tag === 'rect' && <div className="field-row"><label>{copy.cornerRadius}</label><div className="range-wrap"><input type="range" min="0" max={cornerRadiusMax} step="1" value={cornerRadius} style={{ '--range-progress': `${cornerRadiusMax ? cornerRadius / cornerRadiusMax * 100 : 0}%` }} onChange={(event) => previewRectRadius(event.target.value)} onPointerUp={commitPreviewAttributes} onBlur={commitPreviewAttributes} /><span>{cornerRadius}px</span></div></div>}
             </div>
             <div className="inspector-section"><div className="section-label">{copy.elementDetails}</div><div className="detail-grid"><div><span>{copy.layer}</span><strong>{String(elements.indexOf(selected) + 1).padStart(2, '0')} / {String(elements.length).padStart(2, '0')}</strong></div><div><span>{copy.visibility}</span><strong>{copy.visible}</strong></div></div></div>
           </> : <div className="empty-inspector">{copy.noSelection}</div>}</div>
@@ -1349,7 +1349,7 @@ function App() {
 
 function ColorField({ label, value, onPreview, onCommit }) {
   const pickerValue = value.length === 7 && /^#[0-9a-f]{6}$/i.test(value) ? value : '#5B75FF'
-  return <div className="color-field"><label>{label}</label><div className="color-control"><input className="color-picker" type="color" value={pickerValue} onChange={(event) => onPreview(event.target.value.toUpperCase())} onBlur={onCommit} /><input className="hex-input" value={value} onChange={(event) => onPreview(event.target.value)} onBlur={onCommit} maxLength={7} /><span className="color-swatch" style={{ backgroundColor: pickerValue }} /></div></div>
+  return <div className="color-field"><label>{label}</label><div className="color-control"><input className="color-picker" type="color" value={pickerValue} onChange={(event) => onPreview(event.target.value.toUpperCase())} onBlur={onCommit} /><input className="hex-input" value={value} onChange={(event) => onPreview(event.target.value)} onBlur={onCommit} maxLength={7} /></div></div>
 }
 
 function NumericField({ id, label, value, min, step, suffix, onPreview, onCommit, onKeyDown }) {
