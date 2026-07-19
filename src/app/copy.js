@@ -1,6 +1,6 @@
 export const COPY = {
   en: {
-    languageSwitch: '中文', githubRepository: 'View source on GitHub', saved: 'All changes saved', unsaved: 'Unsaved changes', open: 'Import SVG', export: 'Export SVG',
+    languageSwitch: '中文', githubRepository: 'View source on GitHub', saved: 'All changes saved', unsaved: 'Changes not exported', open: 'Import SVG', export: 'Export SVG',
     layers: 'Layers', addLayer: 'Add layer', addElement: 'Add element', loadDemo: 'Load demo SVG', textContent: 'Text content', editText: 'Edit text content', fontSize: 'Font size', letterSpacing: 'Character spacing', fontFamily: 'Font family', fontFamilyPlaceholder: 'e.g. Arial, sans-serif',
     preview: 'Preview', source: 'Source', format: 'Format', editSource: 'Edit source', sourceTree: 'SVG source tree', collapsedContent: 'Collapsed content', resetView: 'Reset view and center', collapseLayers: 'Collapse layers', expandLayers: 'Expand layers', collapseInspector: 'Collapse properties', expandInspector: 'Expand properties', dropHint: 'Drop an SVG anywhere to begin', inspector: 'Inspector', appearance: 'Appearance',
     fill: 'Fill', stroke: 'Stroke', opacity: 'Opacity', strokeWidth: 'Stroke width', cornerRadius: 'Corner radius', width: 'Width', height: 'Height', elementDetails: 'Element details', layer: 'Layer', visibility: 'Visibility',
@@ -21,7 +21,7 @@ export const COPY = {
     storageFull: 'Local storage is full — changes may not be saved',
   },
   zh: {
-    languageSwitch: 'English', githubRepository: '在 GitHub 查看源码', saved: '所有更改已保存', unsaved: '有未保存的更改', open: '导入 SVG', export: '导出',
+    languageSwitch: 'English', githubRepository: '在 GitHub 查看源码', saved: '所有更改已保存', unsaved: '更改尚未导出', open: '导入 SVG', export: '导出',
     layers: '图层', addLayer: '添加图层', addElement: '添加元素', loadDemo: '加载 Demo SVG', textContent: '文字内容', editText: '编辑文字内容', fontSize: '字体大小', letterSpacing: '字符间距', fontFamily: '字体家族', fontFamilyPlaceholder: '例如 Arial, sans-serif',
     preview: '预览', source: '源码', format: '格式化', editSource: '编辑源码', sourceTree: 'SVG 源码树', collapsedContent: '已折叠内容', resetView: '重置视图并居中', collapseLayers: '折叠图层面板', expandLayers: '展开图层面板', collapseInspector: '折叠属性面板', expandInspector: '展开属性面板', dropHint: '将 SVG 拖到这里开始', inspector: '检查器', appearance: '外观',
     fill: '填充', stroke: '描边', opacity: '不透明度', strokeWidth: '描边宽度', cornerRadius: '圆角半径', width: '宽度', height: '高度', elementDetails: '元素详情', layer: '图层', visibility: '可见性',

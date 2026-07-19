@@ -132,7 +132,7 @@ h1 { margin: 0; font-size: clamp(25px, 3vw, 37px); line-height: 1.1; letter-spac
 .source-empty-state p { margin: 0; color: var(--muted-2); font-size: 12px; }
 .source-empty-state .button { pointer-events: auto; }
 .syntax-tag { color: #8d9eff; }.syntax-attribute { color: #9fdcbd; }.syntax-value { color: #ffb095; }.syntax-comment { color: #64738b; }
-.canvas-status { height: 36px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #8291a8; background: rgba(16,25,43,.45); border-top: 1px solid var(--border); font: 10px 'DM Mono', monospace; }
+.canvas-status { flex: none; margin-top: auto; padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #8291a8; background: rgba(16,25,43,.45); border-top: 1px solid var(--border); font: 10px 'DM Mono', monospace; }
 .canvas-status > span:first-child { display: flex; align-items: center; gap: 7px; color: #aab7c8; }.live-dot { width: 5px; height: 5px; }.status-path { color: #64738b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toast { position: absolute; z-index: 6; left: 50%; top: 80px; transform: translateX(-50%); padding: 8px 9px 8px 12px; border: 1px solid rgba(200,255,79,.42); border-radius: 6px; display: flex; align-items: center; gap: 8px; background: #22301f; color: #d8ffa1; font-size: 11px; box-shadow: 0 10px 26px rgba(4,11,23,.35); animation: toast-in .18s ease; }
 .toast.error { border-color: rgba(255,139,92,.4); background: #422e32; color: #ffb197; }
