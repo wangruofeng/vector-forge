@@ -1,0 +1,33 @@
+export default function Icon({ name, size = 16 }) {
+  const paths = {
+    upload: <><path d="M8 11V3m0 0L5 6m3-3 3 3" /><path d="M3 10v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3" /></>,
+    download: <><path d="M8 3v8m0 0 3-3m-3 3-3-3" /><path d="M3 12v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1" /></>,
+    undo: <><path d="M6 5 3 8l3 3" /><path d="M3 8h6a4 4 0 0 1 4 4v1" /></>,
+    redo: <><path d="m10 5 3 3-3 3" /><path d="M13 8H7a4 4 0 0 0-4 4v1" /></>,
+    eye: <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="1.9" /></>,
+    layers: <><path d="m8 2 6 3-6 3-6-3 6-3Z" /><path d="m2 8 6 3 6-3M2 11l6 3 6-3" /></>,
+    chevron: <path d="m5 6 3 3 3-3" />,
+    plus: <><path d="M8 3v10M3 8h10" /></>,
+    code: <><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2.5 7 13.5" /></>,
+    sidebar: <><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" /></>,
+    x: <><path d="m4 4 8 8M12 4l-8 8" /></>,
+    check: <path d="m3 8 3 3 5-6" />,
+    minus: <path d="M3 8h10" />,
+    fit: <><circle cx="8" cy="8" r="4.4" /><path d="M8 1.2v2.4M8 12.4v2.4M1.2 8h2.4M12.4 8h2.4" /></>,
+    help: <><circle cx="8" cy="8" r="6.1" /><path d="M6.2 6.2a1.85 1.85 0 1 1 2.6 2.3c-.5.35-.8.65-.8 1.4" /><path d="M8 11.3v.2" /></>,
+    link: <><path d="M6.6 9.4a2.9 2.9 0 0 0 4.1 0l1.9-1.9a2.9 2.9 0 1 0-4.1-4.1l-1 1" /><path d="M9.4 6.6a2.9 2.9 0 0 0-4.1 0l-1.9 1.9a2.9 2.9 0 1 0 4.1 4.1l1-1" /></>,
+    alignLeft: <><path d="M3 2.5v11" /><rect x="5.5" y="4.5" width="7.5" height="3" rx="0.6" /><rect x="5.5" y="8.5" width="4.5" height="3" rx="0.6" /></>,
+    alignCenterX: <><path d="M8 2.5v11" /><rect x="4.25" y="4.5" width="7.5" height="3" rx="0.6" /><rect x="5.75" y="8.5" width="4.5" height="3" rx="0.6" /></>,
+    alignRight: <><path d="M13 2.5v11" /><rect x="3" y="4.5" width="7.5" height="3" rx="0.6" /><rect x="6" y="8.5" width="4.5" height="3" rx="0.6" /></>,
+    alignTop: <><path d="M2.5 3h11" /><rect x="4.5" y="5.5" width="3" height="7.5" rx="0.6" /><rect x="8.5" y="5.5" width="3" height="4.5" rx="0.6" /></>,
+    alignCenterY: <><path d="M2.5 8h11" /><rect x="4.5" y="4.25" width="3" height="7.5" rx="0.6" /><rect x="8.5" y="5.75" width="3" height="4.5" rx="0.6" /></>,
+    alignBottom: <><path d="M2.5 13h11" /><rect x="4.5" y="3" width="3" height="7.5" rx="0.6" /><rect x="8.5" y="6" width="3" height="4.5" rx="0.6" /></>,
+    distributeX: <><rect x="2.5" y="4.5" width="2.4" height="7" rx="0.6" /><rect x="6.8" y="4.5" width="2.4" height="7" rx="0.6" /><rect x="11.1" y="4.5" width="2.4" height="7" rx="0.6" /></>,
+    distributeY: <><rect x="4.5" y="2.5" width="7" height="2.4" rx="0.6" /><rect x="4.5" y="6.8" width="7" height="2.4" rx="0.6" /><rect x="4.5" y="11.1" width="7" height="2.4" rx="0.6" /></>,
+    edit: <path d="M9.8 3.2a1.5 1.5 0 0 1 2.1 2.1L5.5 11.7 3 12.3l.6-2.5 6.2-6.6Z" />,
+    copy: <><rect x="5.5" y="5.5" width="7" height="7" rx="1.5" /><path d="M10.2 5.5V4.4a1.9 1.9 0 0 0-1.9-1.9H5.4a1.9 1.9 0 0 0-1.9 1.9v2.9a1.9 1.9 0 0 0 1.9 1.9h1.1" /></>,
+    paste: <><rect x="3.5" y="4.5" width="9" height="9" rx="1.5" /><path d="M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" /></>,
+    trash: <><path d="M3 4.5h10" /><path d="M6 4.5V3.2A1.2 1.2 0 0 1 7.2 2h1.6A1.2 1.2 0 0 1 10 3.2v1.3" /><path d="M4.5 4.5 5.2 13a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.7-8.5" /></>,
+  }
+  return <svg className="icon" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
+}
