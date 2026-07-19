@@ -3,12 +3,117 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#10192b" />
+    <meta name="theme-color" content="#10192b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Vector Forge — SVG editor</title>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <title>Vector Forge — Free Online SVG Editor in Your Browser</title>
+    <meta name="description" content="Vector Forge is a free browser-based SVG editor. Import any SVG, inspect and rearrange layers, edit fills, strokes and transforms live, and export optimized markup — no install, no account." />
+    <meta name="keywords" content="SVG editor, online SVG editor, browser SVG editor, free SVG editor, edit SVG layers, SVG path editor, vector editor" />
+    <link rel="canonical" href="https://vector-forge.wangruofeng007.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vector Forge" />
+    <meta property="og:title" content="Vector Forge — Free Online SVG Editor in Your Browser" />
+    <meta property="og:description" content="Import any SVG, inspect and rearrange layers, edit fills, strokes and transforms live, and export optimized markup — no install, no account." />
+    <meta property="og:url" content="https://vector-forge.wangruofeng007.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="zh_CN" />
+    <meta property="og:image" content="https://vector-forge.wangruofeng007.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Vector Forge — browser SVG editor with layers, live preview and export" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Vector Forge — Free Online SVG Editor in Your Browser" />
+    <meta name="twitter:description" content="Import any SVG, inspect and rearrange layers, edit fills, strokes and transforms live, and export optimized markup — no install, no account." />
+    <meta name="twitter:image" content="https://vector-forge.wangruofeng007.com/og-image.png" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "@id": "https://vector-forge.wangruofeng007.com/#app",
+            "name": "Vector Forge",
+            "url": "https://vector-forge.wangruofeng007.com/",
+            "description": "Free browser-based SVG editor. Import any SVG, inspect and rearrange layers, edit fills, strokes and transforms live, and export optimized markup.",
+            "applicationCategory": "DesignApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+            "inLanguage": ["en", "zh"],
+            "isAccessibleForFree": true,
+            "featureList": [
+              "Import SVG files by drag-and-drop or file picker",
+              "Layer tree to inspect, select, rename, reorder, show/hide SVG elements",
+              "Add shapes: rect, circle, ellipse, line, polyline, polygon, path, text",
+              "Edit fills, strokes, opacity and stroke width live",
+              "Inline text editing directly on the canvas",
+              "Pan and zoom canvas (trackpad pinch, scroll, buttons)",
+              "Multi-select layers with bounding-box preview",
+              "Source view with syntax highlighting and one-click format",
+              "Undo / redo history",
+              "Export optimized and minified SVG"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "publisher": { "@id": "https://vector-forge.wangruofeng007.com/#org" },
+            "isPartOf": { "@id": "https://vector-forge.wangruofeng007.com/#website" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://vector-forge.wangruofeng007.com/#website",
+            "url": "https://vector-forge.wangruofeng007.com/",
+            "name": "Vector Forge",
+            "inLanguage": ["en", "zh"],
+            "publisher": { "@id": "https://vector-forge.wangruofeng007.com/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://vector-forge.wangruofeng007.com/#org",
+            "name": "Vector Forge",
+            "url": "https://vector-forge.wangruofeng007.com/",
+            "logo": "https://vector-forge.wangruofeng007.com/icon-512.png"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        静态 SEO 兜底文案：爬虫与禁用 JS 的客户端首屏可见。
+        React createRoot 渲染时会清空 #root 并替换为完整应用，不会出现 hydration mismatch（未用 hydrateRoot）。
+      -->
+      <h1>Vector Forge — Free Online SVG Editor in Your Browser</h1>
+      <p>
+        Vector Forge is a free, browser-based SVG editor. Drop in any SVG to inspect its layers,
+        fine-tune fills, strokes and transforms in real time, and export clean, optimized markup.
+        No install, no account — everything runs locally in your browser.
+      </p>
+      <ul>
+        <li>Import SVG by drag-and-drop or file picker</li>
+        <li>Layer tree: select, rename, reorder, show or hide elements</li>
+        <li>Add shapes — rect, circle, ellipse, line, polyline, polygon, path and text</li>
+        <li>Live property panel: fill, stroke, opacity, stroke width, corner radius</li>
+        <li>Inline text editing directly on the canvas</li>
+        <li>Pan and zoom with trackpad pinch, mouse scroll or on-screen buttons</li>
+        <li>Multi-select with per-layer and combined bounding boxes</li>
+        <li>Source view with syntax highlighting and one-click format</li>
+        <li>Full undo / redo history</li>
+        <li>Export optimized, minified SVG</li>
+      </ul>
+      <p>Available in English and 简体中文.</p>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
