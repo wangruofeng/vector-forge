@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#10192b" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#10192b" />
+    <style>
+      html, body { min-height: 100%; margin: 0; background: #10192b; }
+      #root[data-booting] { min-height: 100vh; background: #10192b; }
+      #root[data-booting] > * { visibility: hidden; }
+    </style>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -89,7 +93,7 @@
     </script>
   </head>
   <body>
-    <div id="root">
+    <div id="root" data-booting>
       <!--
         静态 SEO 兜底文案：爬虫与禁用 JS 的客户端首屏可见。
         React createRoot 渲染时会清空 #root 并替换为完整应用，不会出现 hydration mismatch（未用 hydrateRoot）。
@@ -114,6 +118,7 @@
       </ul>
       <p>Available in English and 简体中文.</p>
     </div>
+    <noscript><style>#root[data-booting] > * { visibility: visible; }</style></noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -93,6 +93,15 @@ export function getAncestorGroupIds(elements, targetId) {
   return []
 }
 
+export function getElementAndDescendantIds(elements, targetId) {
+  const startIndex = elements.findIndex((item) => item.id === targetId)
+  if (startIndex < 0) return []
+  const target = elements[startIndex]
+  const ids = [target.id]
+  for (let index = startIndex + 1; index < elements.length && elements[index].depth > target.depth; index += 1) ids.push(elements[index].id)
+  return ids
+}
+
 export function getVisibleLayerItems(elements, expandedGroups) {
   const visible = []
   const ancestors = []

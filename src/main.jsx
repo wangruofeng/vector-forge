@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { COPY, ADD_LAYER_TAGS, getLayerDisplayName, getTagDisplayName } from './app/copy.js'
@@ -71,10 +71,12 @@ function App() {
   const [renamingLayerId, setRenamingLayerId] = useState('')
   const [renameDraft, setRenameDraft] = useState('')
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [sourceDisplayMode, setSourceDisplayMode] = useState('edit')
   const [draggingLayerId, setDraggingLayerId] = useState('')
   const [dragOverLayerId, setDragOverLayerId] = useState('')
   const [editingTextId, setEditingTextId] = useState('')
   const [textDraft, setTextDraft] = useState('')
+  const [textEditStyle, setTextEditStyle] = useState({})
   const [textFieldDraft, setTextFieldDraft] = useState('')
   const [attributeDrafts, setAttributeDrafts] = useState({ targetId: '', values: {} })
   const fileInput = useRef(null)
@@ -91,6 +93,10 @@ function App() {
   const fileDragCounterRef = useRef(0)
   const renameInputRef = useRef(null)
   const copy = COPY[language]
+
+  useLayoutEffect(() => {
+    document.getElementById('root')?.removeAttribute('data-booting')
+  }, [])
 
   const shortcutGroups = [
     {
@@ -126,8 +132,10 @@ function App() {
   const selectedDisplayName = selected ? getLayerDisplayName(selected, language) : ''
   const contextMenuTarget = contextMenu ? elements.find((element) => element.id === contextMenu.targetId) : null
   const canvasInteraction = useCanvasInteraction({ activeTab, selectedId, selectedIds, selected, elements, svgMarkup, currentSnapshot, commitDocument, selectLayerIds })
-  const { canvasRef, svgRef, svgPosition, setSvgPosition, svgScale, setSvgScale, isDraggingSvg, isDraggingElement, isResizingElement, isPinchingSvg, selectionBox, multiSelectionBoxes, hoveredLayerId, setHoveredLayerId, transientMarkup, updateTransientMarkup, clearTransientMarkup, zoomBy, fitToScreen, getElementSvgBounds, handleCanvasClick, handleCanvasPointerDown, handleCanvasPointerMove, handleCanvasPointerUp, handleResizePointerMove, handleResizePointerUp } = canvasInteraction
-  const handleSvgDoubleClick = (event) => canvasInteraction.handleSvgDoubleClick(event, setTextDraft, setEditingTextId)
+  const { canvasRef, svgRef, svgPosition, setSvgPosition, svgScale, setSvgScale, isDraggingSvg, isDraggingElement, isResizingElement, isPinchingSvg, selectionBox, multiSelectionBoxes, hoveredLayerId, setHoveredLayerId, transientMarkup, updateTransientMarkup, clearTransientMarkup, zoomBy, fitToScreen, getElementSvgBounds, handleCanvasClick, handleCanvasPointerDown: handleCanvasPointerDownBase, handleCanvasPointerMove, handleCanvasPointerUp: handleCanvasPointerUpBase, handleResizePointerMove, handleResizePointerUp } = canvasInteraction
+  const handleSvgDoubleClick = (event) => canvasInteraction.handleSvgDoubleClick(event, setTextDraft, setEditingTextId, setTextEditStyle)
+  const handleCanvasPointerDown = (event) => handleCanvasPointerDownBase(event, setTextDraft, setEditingTextId, setTextEditStyle)
+  const handleCanvasPointerUp = (event, cancelled = false) => handleCanvasPointerUpBase(event, cancelled, setTextDraft, setEditingTextId, setTextEditStyle)
   const handleResizePointerDown = (event, handle) => canvasInteraction.handleResizePointerDown(event, handle)
   const renderedMarkup = transientMarkup || svgMarkup
   const getDraftedAttribute = (attribute, fallback = '') => {
@@ -158,8 +166,15 @@ function App() {
 
   useEffect(() => {
     if (!editingTextId) return
-    textEditRef.current?.focus()
-    textEditRef.current?.select()
+    const editor = textEditRef.current
+    if (!editor) return
+    editor.textContent = textDraft
+    editor.focus()
+    const range = document.createRange()
+    range.selectNodeContents(editor)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
   }, [editingTextId])
 
   useEffect(() => {
@@ -269,6 +284,7 @@ function App() {
       setSvgPosition({ x: 0, y: 0 })
       setSvgScale(1)
       setExpandedGroups({})
+      setSourceDisplayMode('edit')
       setActiveTab('preview')
       if (!silent) showToast(`${copy.toastImported} ${name}`)
     } catch {
@@ -298,17 +314,18 @@ function App() {
     previewAttributes({ rx: nextValue, ry: nextValue })
   }
 
-  const commitTextEdit = () => {
+  const commitTextEdit = (nextText = textDraft) => {
     if (!editingTextId) return
     const doc = new DOMParser().parseFromString(svgMarkup, 'image/svg+xml')
     const node = doc.querySelector(`[data-editor-id="${editingTextId}"]`)
     if (node) {
-      node.textContent = textDraft
+      node.textContent = nextText
       syncTextLineLayout(node)
       const nextMarkup = new XMLSerializer().serializeToString(doc.documentElement)
       commitDocument(nextMarkup, { nextSelectedId: editingTextId })
     }
     setEditingTextId('')
+    setTextEditStyle({})
   }
 
   const commitTextField = () => {
@@ -322,7 +339,10 @@ function App() {
     commitDocument(nextMarkup, { nextSelectedId: selected.id })
   }
 
-  const cancelTextEdit = () => setEditingTextId('')
+  const cancelTextEdit = () => {
+    setEditingTextId('')
+    setTextEditStyle({})
+  }
 
   const toggleVisibility = (item, event) => {
     event.stopPropagation()
@@ -546,6 +566,8 @@ function App() {
     try {
       const formatted = formatSvgMarkup(sourceDraft)
       commitDocument(formatted, { nextSelectedId: selectedId })
+      setSourceDraft(formatted)
+      setSourceDisplayMode('tree')
       showToast(copy.toastFormatted)
     } catch {
       showToast(copy.invalidSvg, 'error')
@@ -797,7 +819,7 @@ function App() {
   return (
     <main className="app-shell" onDragEnter={handleFileDragEnter} onDragOver={handleFileDragOver} onDragLeave={handleFileDragLeave} onDrop={handleDrop}>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark"><span /></span><span>VECTOR FORGE</span></div>
+        <div className="brand"><span className="brand-mark"><span /></span><span>VECTOR FORGE</span><a className="brand-github-link" href="https://github.com/wangruofeng/vector-forge" target="_blank" rel="noreferrer" title={copy.githubRepository} aria-label={copy.githubRepository}><Icon name="github" size={17} /></a></div>
         <div className="topbar-actions">
           <button className="icon-button" title={`${copy.undo} (⌘Z)`} aria-keyshortcuts="Meta+Z" onClick={undo} disabled={!history.past.length}><Icon name="undo" /></button>
           <button className="icon-button" title={`${copy.redo} (⌘⇧Z)`} aria-keyshortcuts="Meta+Shift+Z" onClick={redo} disabled={!history.future.length}><Icon name="redo" /></button>
@@ -845,7 +867,12 @@ function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           formatSource={formatSource}
+          sourceDisplayMode={sourceDisplayMode}
+          setSourceDisplayMode={setSourceDisplayMode}
+          expandedGroups={expandedGroups}
+          toggleGroup={toggleGroup}
           selectedIds={selectedIds}
+          selectLayerIds={selectLayerIds}
           alignSelection={alignSelection}
           zoomBy={zoomBy}
           fitToScreen={fitToScreen}
@@ -869,6 +896,7 @@ function App() {
           svgPosition={svgPosition}
           renderedMarkup={renderedMarkup}
           editingTextId={editingTextId}
+          textEditStyle={textEditStyle}
           selectedId={selectedId}
           selected={selected}
           selectionBox={selectionBox}

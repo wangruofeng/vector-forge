@@ -234,9 +234,9 @@ export function translateElementsById(rawMarkup, moves) {
   return new XMLSerializer().serializeToString(doc.documentElement)
 }
 
-export function highlightSelectedMarkup(rawMarkup, selectedIds) {
+export function highlightSelectedMarkup(rawMarkup, selectedIds, editingTextId = '') {
   return selectedIds.reduce(
-    (markup, id) => markup.replace(`data-editor-id="${id}"`, `data-editor-id="${id}" class="is-selected"`),
+    (markup, id) => markup.replace(`data-editor-id="${id}"`, `data-editor-id="${id}" class="is-selected${id === editingTextId ? ' is-editing-text' : ''}"`),
     rawMarkup,
   )
 }

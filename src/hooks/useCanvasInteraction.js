@@ -23,6 +23,7 @@ export default function useCanvasInteraction({ activeTab, selectedId, selectedId
   const transientMarkupRef = useRef('')
   const previewFrameRef = useRef(0)
   const suppressCanvasClickRef = useRef(false)
+  const lastTextTapRef = useRef({ id: '', time: 0 })
 
   const updateTransientMarkup = (markup) => {
     transientMarkupRef.current = markup
@@ -95,6 +96,8 @@ export default function useCanvasInteraction({ activeTab, selectedId, selectedId
     return { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 }
   }
 
+  const getEventElementTarget = (event) => event.target?.closest?.('[data-editor-id]') || document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-editor-id]')
+
   const selectElementAtPoint = (clientX, clientY, fallbackTarget, additive = false) => {
     const pointTarget = document.elementFromPoint(clientX, clientY)
     const target = pointTarget?.closest?.('[data-editor-id]') || fallbackTarget?.closest?.('[data-editor-id]')
@@ -114,30 +117,51 @@ export default function useCanvasInteraction({ activeTab, selectedId, selectedId
       suppressCanvasClickRef.current = false
       return
     }
-    if (event.target?.closest?.('[data-editor-id]')) return
+    const elementTarget = getEventElementTarget(event)
+    if (elementTarget) return
     const targetId = selectElementAtPoint(event.clientX, event.clientY, event.target, event.metaKey || event.ctrlKey)
     if (!targetId && !event.metaKey && !event.ctrlKey) selectLayerIds([])
   }
 
-  const handleSvgDoubleClick = (event, setTextDraft, setEditingTextId) => {
-    const target = event.target?.closest?.('[data-editor-id]')
-    const item = target ? elements.find((element) => element.id === target.getAttribute('data-editor-id')) : null
-    if (!item || item.tag !== 'text') return
-    event.preventDefault()
-    event.stopPropagation()
+  function startTextEdit(target, item, setTextDraft, setEditingTextId, setTextEditStyle) {
     selectLayerIds([item.id], item.id)
     const stageRect = canvasRef.current?.getBoundingClientRect()
     const targetRect = target.getBoundingClientRect()
     if (stageRect && targetRect) setSelectionBox({ left: targetRect.left - stageRect.left, top: targetRect.top - stageRect.top, width: targetRect.width, height: targetRect.height })
+    const computedStyle = window.getComputedStyle(target)
+    const textAnchor = target.getAttribute('text-anchor') || 'start'
+    setTextEditStyle({
+      color: computedStyle.fill,
+      fontFamily: computedStyle.fontFamily,
+      fontSize: computedStyle.fontSize,
+      fontStyle: computedStyle.fontStyle,
+      fontWeight: computedStyle.fontWeight,
+      letterSpacing: computedStyle.letterSpacing,
+      textAlign: textAnchor === 'middle' ? 'center' : textAnchor === 'end' ? 'right' : 'left',
+    })
     setTextDraft(getEditableTextContent(target))
     setEditingTextId(item.id)
   }
 
-  const handleCanvasPointerDown = (event) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return
+  const handleSvgDoubleClick = (event, setTextDraft, setEditingTextId, setTextEditStyle) => {
+    const eventTarget = getEventElementTarget(event)
+    const eventItem = eventTarget ? elements.find((element) => element.id === eventTarget.getAttribute('data-editor-id')) : null
+    // After the first click, the selection overlay can become the event target.
+    // Fall back to the active text node so a normal double-click still edits it.
+    const item = eventItem || (selected?.tag === 'text' ? selected : null)
+    const target = eventTarget || (item ? svgRef.current?.querySelector(`[data-editor-id="${item.id}"]`) : null)
+    if (!item || item.tag !== 'text') return
     event.preventDefault()
     event.stopPropagation()
-    const elementTarget = event.target?.closest?.('[data-editor-id]')
+    startTextEdit(target, item, setTextDraft, setEditingTextId, setTextEditStyle)
+  }
+
+  const handleCanvasPointerDown = (event, setTextDraft, setEditingTextId, setTextEditStyle) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    const elementTarget = getEventElementTarget(event)
+    const item = elementTarget ? elements.find((element) => element.id === elementTarget.getAttribute('data-editor-id')) : null
+    if (item?.tag !== 'text') event.preventDefault()
+    event.stopPropagation()
     const targetId = selectElementAtPoint(event.clientX, event.clientY, event.target, event.metaKey || event.ctrlKey)
     activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -214,7 +238,7 @@ export default function useCanvasInteraction({ activeTab, selectedId, selectedId
     setSvgPosition({ x: drag.origin.x + event.clientX - drag.startX, y: drag.origin.y + event.clientY - drag.startY })
   }
 
-  const handleCanvasPointerUp = (event, cancelled = false) => {
+  const handleCanvasPointerUp = (event, cancelled = false, setTextDraft, setEditingTextId, setTextEditStyle) => {
     activePointersRef.current.delete(event.pointerId)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (activePointersRef.current.size < 2) {
@@ -226,6 +250,16 @@ export default function useCanvasInteraction({ activeTab, selectedId, selectedId
     const elementDrag = elementDragRef.current
     if (elementDrag && elementDrag.pointerId === event.pointerId) {
       if (elementDrag.moved) suppressCanvasClickRef.current = true
+      const textItem = !cancelled && !elementDrag.moved ? elements.find((item) => item.id === elementDrag.selectionIds[0] && item.tag === 'text') : null
+      if (textItem) {
+        const now = performance.now()
+        const isSecondTap = lastTextTapRef.current.id === textItem.id && now - lastTextTapRef.current.time < 500
+        lastTextTapRef.current = isSecondTap ? { id: '', time: 0 } : { id: textItem.id, time: now }
+        if (isSecondTap) {
+          const target = svgRef.current?.querySelector(`[data-editor-id="${textItem.id}"]`)
+          if (target) startTextEdit(target, textItem, setTextDraft, setEditingTextId, setTextEditStyle)
+        }
+      }
       if (cancelled || !elementDrag.moved) clearTransientMarkup()
       else {
         clearTransientMarkup()
