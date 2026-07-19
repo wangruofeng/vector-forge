@@ -108,6 +108,10 @@ npx wrangler login
 │   ├── editor/      # SVG parser、geometry、transforms
 │   ├── hooks/       # 文档状态和画布交互 Hook
 │   └── styles.css   # 全局样式
+├── docs/
+│   ├── product-roadmap.md       # 产品迭代计划
+│   ├── browser-smoke-checklist.md  # 浏览器手动验收清单
+│   └── web-storage-options.md   # Web 数据持久化方案选型
 ├── index.html
 └── package.json
 ```
